@@ -1,0 +1,8 @@
+{% if messages %}
+    {% for message in messages %}
+        <article class="notification is-{{ message.tags }}" x-data="{show : true}" x-show="show">
+            {{ message }}
+            <button class="delete" aria-label="delete" @click="show=false"></button>
+        </article>
+    {% endfor %}
+{% endif %}
