@@ -1,12 +1,55 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="container">
-    <h2 class="title is-4">Product List</h2>
+<div class="container" x-data="productListApp()">
+    <h2 class="title">Product List</h2>
     {% include "includes/messages.html" %}
     
     {% include "includes/create_product.html" %}
-
+    
+    <div class="grid">
+        <div class="cell">
+            <div class="card">
+                <header class="card-header">
+                    <p class="card-header-title">Purchases</p>
+                </header>
+                <div class="card-content">
+                    C$ {{purchases}}
+                </div>
+            </div>
+        </div>
+        <div class="cell">
+            <div class="card">
+                <header class="card-header">
+                    <p class="card-header-title">Sales</p>
+                </header>
+                <div class="card-content">
+                    C$ {{sales}}
+                </div>
+            </div>
+        </div>
+        <div class="cell">
+            <div class="card">
+                <header class="card-header">
+                    <p class="card-header-title">Expenses</p>
+                </header>
+                <div class="card-content">
+                    C$ {{expenses}}
+                </div>
+            </div>
+        </div>
+    </div>
+    <h1 class="subtitle">Category Filter</h1>
+    <div class="field">
+        <div class="control">
+            <input class="input" type="text" x-model="textFilter">
+        </div>
+    </div>
+    <div class="buttons">
+        {% for category in categories %}
+            <button class="button" :class="itemFiltered.includes('{{category.name}}') ? 'is-primary' : 'is-link'" @click="filterCategory('{{category.name}}')"> {{ category.name }}</button>
+        {% endfor %}
+    </div>
     <table class="table is-fullwidth is-striped">
         <thead>
         <tr>
@@ -21,7 +64,7 @@
         </thead>
         <tbody>
             {% for product in products %}
-                <tr>
+                <tr x-show="showItem('{{product.category.name}}','{{product.name}}')">
                     <td>{{ product.id }}</td>
                     <td>{{ product.name }}</td>
                     <td>{{ product.category }}</td>
@@ -36,4 +79,28 @@
         </tbody>
     </table>
 </div>
+
+<script>
+    function productListApp() {
+        return {
+            textFilter: "",
+            itemFiltered : [],
+            filterCategory : function(category) {
+                if (this.itemFiltered.includes(category)) {
+                    this.itemFiltered = this.itemFiltered.filter(item => item != category)
+                } else {
+                    this.itemFiltered.push(category)
+                }
+            },
+            showItem : function(category, product) {
+                if (this.textFilter.length != 0) {
+                    let productFilter = product.toLowerCase().includes(this.textFilter.toLowerCase())
+                    let categoryFilter = category.toLowerCase().includes(this.textFilter.toLowerCase())
+                    return productFilter || categoryFilter
+                }
+                return this.itemFiltered.includes(category) || this.itemFiltered.length == 0
+            }
+        }
+    }
+</script>
 {% endblock %}
