@@ -1,106 +1,24 @@
 {% extends "layout.html" %}
-
 {% block content %}
-<div class="container" x-data="productListApp()">
-    <h2 class="title">Product List</h2>
-    {% include "includes/messages.html" %}
-    
-    {% include "includes/create_product.html" %}
-    
-    <div class="grid">
-        <div class="cell">
-            <div class="card">
-                <header class="card-header">
-                    <p class="card-header-title">Purchases</p>
-                </header>
-                <div class="card-content">
-                    C$ {{purchases}}
-                </div>
-            </div>
-        </div>
-        <div class="cell">
-            <div class="card">
-                <header class="card-header">
-                    <p class="card-header-title">Sales</p>
-                </header>
-                <div class="card-content">
-                    C$ {{sales}}
-                </div>
-            </div>
-        </div>
-        <div class="cell">
-            <div class="card">
-                <header class="card-header">
-                    <p class="card-header-title">Expenses</p>
-                </header>
-                <div class="card-content">
-                    C$ {{expenses}}
-                </div>
-            </div>
-        </div>
-    </div>
-    <h1 class="subtitle">Category Filter</h1>
-    <div class="field">
-        <div class="control">
-            <input class="input" type="text" x-model="textFilter">
-        </div>
-    </div>
-    <div class="buttons">
-        {% for category in categories %}
-            <button class="button" :class="itemFiltered.includes('{{category.name}}') ? 'is-primary' : 'is-link'" @click="filterCategory('{{category.name}}')"> {{ category.name }}</button>
-        {% endfor %}
-    </div>
-    <table class="table is-fullwidth is-striped">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Stock</th>
-            <th>Avg Cost</th>
-            <th>Sale Price</th>
-            <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-            {% for product in products %}
-                <tr x-show="showItem('{{product.category.name}}','{{product.name}}')">
-                    <td>{{ product.id }}</td>
-                    <td>{{ product.name }}</td>
-                    <td>{{ product.category }}</td>
-                    <td>{{ product.stock }}</td>
-                    <td>C$ {{ product.average_cost }}</td>
-                    <td>C$ {{ product.price }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="7">No products found.</td></tr>
-            {% endfor %}
-            <td colspan="7">Total Inventory: C$ {{total_inventory}}</td>
-        </tbody>
-    </table>
-</div>
+<main class="container" x-data="{ search: '' }">
+  <h1>Productos</h1>
+  <a href="{% url 'product_create' %}" role="button">➕ Nuevo producto</a>
+  <input type="search" x-model="search" placeholder="Buscar producto...">
 
-<script>
-    function productListApp() {
-        return {
-            textFilter: "",
-            itemFiltered : [],
-            filterCategory : function(category) {
-                if (this.itemFiltered.includes(category)) {
-                    this.itemFiltered = this.itemFiltered.filter(item => item != category)
-                } else {
-                    this.itemFiltered.push(category)
-                }
-            },
-            showItem : function(category, product) {
-                if (this.textFilter.length != 0) {
-                    let productFilter = product.toLowerCase().includes(this.textFilter.toLowerCase())
-                    let categoryFilter = category.toLowerCase().includes(this.textFilter.toLowerCase())
-                    return productFilter || categoryFilter
-                }
-                return this.itemFiltered.includes(category) || this.itemFiltered.length == 0
-            }
-        }
-    }
-</script>
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Precio</th></tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr x-show="{{ p.name|lower }}.includes(search.toLowerCase())">
+        <td>{{ p.name }}</td>
+        <td>{{ p.category.name }}</td>
+        <td>{{ p.stock }}</td>
+        <td>${{ p.price }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
 {% endblock %}

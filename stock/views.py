@@ -1,43 +1,82 @@
-from django.shortcuts import render, redirect
-from django.views.decorators.http import require_http_methods
-from .models import *
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-import datetime
+from django.urls import reverse
+from .models import Category, Product, Purchase, Sale
+from .forms import CategoryForm, ProductForm, PurchaseForm, SaleForm
 
-# ---------- PRODUCT VIEWS ----------
+
+def home(request):
+    products = Product.objects.all().select_related('category')
+    return render(request, "home.html", {"products": products})
 
 
+# ---- CATEGORY ----
+def category_list(request):
+    categories = Category.objects.all()
+    return render(request, "category_list.html", {"categories": categories})
+
+
+def category_create(request):
+    if request.method == "POST":
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Categoría creada correctamente.")
+            return redirect("category_list")
+    else:
+        form = CategoryForm()
+    return render(request, "form.html", {"form": form})
+
+
+# ---- PRODUCT ----
 def product_list(request):
-    products = Product.objects.all().order_by("category__name", "name")
-    total_inventory = sum([p.average_cost * p.stock for p in products])
-    actual_month = datetime.date.today().month
-    purchases = Purchase.objects.filter(created_at__month=actual_month)
-    sales = Sale.objects.filter(created_at__month=actual_month)
-    context = {
-        "products": products,
-        "total_inventory": total_inventory,
-        "categories": Category.objects.all(),
-        "purchases": sum([p.cost * p.quantity for p in purchases]),
-        "sales": sum([p.price * p.quantity for p in sales]),
-        "expenses": sum([p.cost * p.quantity for p in sales]),
-    }
-    return render(request, "product_list.html", context)
+    products = Product.objects.select_related('category').all()
+    return render(request, "product_list.html", {"products": products})
 
 
-@require_http_methods(["POST"])
 def product_create(request):
-    name = request.POST.get("name")
-    description = request.POST.get("description")
-    category = request.POST.get("category")
-    stock = request.POST.get("stock")
-    price = request.POST.get("price")
-    if name and category and stock and description and price:
-        Product.objects.create(
-            name=name,
-            category=category,
-            stock=stock,
-            description=description,
-            price=price
-        )
-    messages.add_message(request, messages.INFO, "Hello world.")
-    return redirect("product_list")
+    if request.method == "POST":
+        form = ProductForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Producto agregado correctamente.")
+            return redirect("product_list")
+    else:
+        form = ProductForm()
+    return render(request, "form.html", {"form": form})
+
+
+# ---- PURCHASE ----
+def purchase_list(request):
+    purchases = Purchase.objects.select_related('product').all().order_by("-date")
+    return render(request, "purchase_list.html", {"purchases": purchases})
+
+
+def purchase_create(request):
+    if request.method == "POST":
+        form = PurchaseForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Compra registrada correctamente.")
+            return redirect("purchase_list")
+    else:
+        form = PurchaseForm()
+    return render(request, "form.html", {"form": form})
+
+
+# ---- SALE ----
+def sale_list(request):
+    sales = Sale.objects.select_related('product').all().order_by("-date")
+    return render(request, "sale_list.html", {"sales": sales})
+
+
+def sale_create(request):
+    if request.method == "POST":
+        form = SaleForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Venta registrada correctamente.")
+            return redirect("sale_list")
+    else:
+        form = SaleForm()
+    return render(request, "form.html", {"form": form})

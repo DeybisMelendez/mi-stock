@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>📦 Inventario</h1>
+
+  <h2>Productos actuales</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th><th>Categoría</th><th>Stock</th><th>Precio</th><th>Costo Promedio</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{{ p.category }}</td>
+        <td>{{ p.stock }}</td>
+        <td>${{ p.price }}</td>
+        <td>${{ p.average_cost }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Sin productos registrados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}

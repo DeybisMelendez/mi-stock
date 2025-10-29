@@ -5,12 +5,26 @@
     <title>Mi Stock</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css"
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.orange.min.css"
     >
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 </head>
 <body>
+    <nav class="container">
+        <ul>
+            <li>
+                <a href="{% url 'home' %}">Inicio</a>
+            </li>
+        </ul>
+        <ul>
+        <li><a href="{% url 'category_list' %}">Categorías</a></li>
+        <li><a href="{% url 'product_list' %}">Productos</a></li>
+        <li><a href="{% url 'purchase_list' %}">Compras</a></li>
+        <li><a href="{% url 'sale_list' %}">Ventas</a></li>
+        </ul>
+    </nav>
+    {% include "includes/messages.html" %}
     {% block content %}
     {% endblock %}
     <script src="//unpkg.com/alpinejs" defer></script>

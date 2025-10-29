@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>Compras</h1>
+  <a href="{% url 'purchase_create' %}" role="button">➕ Nueva compra</a>
+  <table>
+    <thead><tr><th>Fecha</th><th>Proveedor</th><th>Producto</th><th>Cantidad</th><th>Costo</th><th>Total</th></tr></thead>
+    <tbody>
+      {% for p in purchases %}
+      <tr>
+        <td>{{ p.date|date:"d/m/Y H:i" }}</td>
+        <td>{{ p.supplier }}</td>
+        <td>{{ p.product }}</td>
+        <td>{{ p.quantity }}</td>
+        <td>${{ p.cost }}</td>
+        <td>${{ p.get_total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}
