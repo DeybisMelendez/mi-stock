@@ -25,7 +25,11 @@ def category_create(request):
             return redirect("category_list")
     else:
         form = CategoryForm()
-    return render(request, "form.html", {"form": form})
+    context = {
+        "title": "Crear categoría",
+        "form": form,
+    }
+    return render(request, "form.html", context)
 
 
 # ---- PRODUCT ----
@@ -43,7 +47,11 @@ def product_create(request):
             return redirect("product_list")
     else:
         form = ProductForm()
-    return render(request, "form.html", {"form": form})
+    context = {
+        "title": "Crear categoría",
+        "form": form,
+    }
+    return render(request, "form.html", context)
 
 
 # ---- PURCHASE ----
@@ -61,7 +69,11 @@ def purchase_create(request):
             return redirect("purchase_list")
     else:
         form = PurchaseForm()
-    return render(request, "form.html", {"form": form})
+    context = {
+        "title": "Crear compra",
+        "form": form,
+    }
+    return render(request, "form.html", context)
 
 
 # ---- SALE ----
@@ -79,4 +91,8 @@ def sale_create(request):
             return redirect("sale_list")
     else:
         form = SaleForm()
-    return render(request, "form.html", {"form": form})
+    context = {
+        "title": "Nueva venta",
+        "form": form,
+    }
+    return render(request, "form.html", context)

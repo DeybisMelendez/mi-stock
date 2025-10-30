@@ -3,6 +3,7 @@ from .models import Category, Product, Purchase, Sale
 
 
 class CategoryForm(forms.ModelForm):
+    email = forms.EmailField(label="Tu email tonto")
     class Meta:
         model = Category
         fields = ["name"]

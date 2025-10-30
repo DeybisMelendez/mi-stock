@@ -7,11 +7,16 @@
 
   <table>
     <thead>
-      <tr><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Precio</th></tr>
+        <tr>
+            <th>Nombre</th>
+            <th>Categoría</th>
+            <th>Stock</th>
+            <th>Precio</th>
+        </tr>
     </thead>
     <tbody>
       {% for p in products %}
-      <tr x-show="{{ p.name|lower }}.includes(search.toLowerCase())">
+      <tr x-show="'{{ p.name|lower }} + {{p.category.name}}'.includes(search.toLowerCase())">
         <td>{{ p.name }}</td>
         <td>{{ p.category.name }}</td>
         <td>{{ p.stock }}</td>
