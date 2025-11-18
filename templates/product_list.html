@@ -3,6 +3,7 @@
 <main class="container" x-data="{ search: '' }">
   <h1>Productos</h1>
   <a href="{% url 'product_create' %}" role="button">➕ Nuevo producto</a>
+  <hr>
   <input type="search" x-model="search" placeholder="Buscar producto...">
 
   <table>
@@ -12,6 +13,7 @@
             <th>Categoría</th>
             <th>Stock</th>
             <th>Precio</th>
+            <th>Costo</th>
         </tr>
     </thead>
     <tbody>
@@ -20,7 +22,8 @@
         <td>{{ p.name }}</td>
         <td>{{ p.category.name }}</td>
         <td>{{ p.stock }}</td>
-        <td>${{ p.price }}</td>
+        <td>C$ {{ p.price }}</td>
+        <td>C$ {{ p.average_cost }}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -3,7 +3,8 @@
 <main class="container" x-data="{ search: '' }">
   <h1>Compras</h1>
   <a href="{% url 'purchase_create' %}" role="button">➕ Nueva compra</a>
-<input type="search" x-model="search" placeholder="Buscar compra...">
+  <hr>
+  <input type="search" x-model="search" placeholder="Buscar compra...">
 
   <table>
     <thead>

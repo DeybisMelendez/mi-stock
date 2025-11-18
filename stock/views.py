@@ -6,13 +6,13 @@ from .forms import CategoryForm, ProductForm, PurchaseForm, SaleForm
 
 
 def home(request):
-    products = Product.objects.all().select_related('category')
+    products = Product.objects.filter(stock__gt=0).select_related(
+        'category').order_by("name", "category", "stock")
     return render(request, "home.html", {"products": products})
 
 
-# ---- CATEGORY ----
 def category_list(request):
-    categories = Category.objects.all()
+    categories = Category.objects.all().order_by("name")
     return render(request, "category_list.html", {"categories": categories})
 
 
@@ -34,7 +34,7 @@ def category_create(request):
 
 # ---- PRODUCT ----
 def product_list(request):
-    products = Product.objects.select_related('category').all()
+    products = Product.objects.select_related('category').filter(stock__gt=0)
     return render(request, "product_list.html", {"products": products})
 
 
@@ -56,7 +56,8 @@ def product_create(request):
 
 # ---- PURCHASE ----
 def purchase_list(request):
-    purchases = Purchase.objects.select_related('product').all().order_by("-date")
+    purchases = Purchase.objects.select_related(
+        'product').all().order_by("-date")
     return render(request, "purchase_list.html", {"purchases": purchases})
 
 
