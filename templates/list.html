@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% load getattribute %}
+{% block content %}
+<main class="container" x-data="{ search: '' }">
+
+  <h1>{{ title }}</h1>
+
+  {% if create_url %}
+    <a href="{{ create_url }}" role="button"><i class="material-icons">add</i> Nuevo</a>
+  {% endif %}
+
+  <hr>
+
+  <input type="search" x-model="search" placeholder="Buscar...">
+
+  <table>
+    <thead>
+      <tr>
+        {% for col in columns %}
+          <th>{{ col }}</th>
+        {% endfor %}
+        <th>Opciones</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for item in items %}
+        <tr>
+          {% for col in columns %}
+            <td>{{ item|getattribute:col }}</td>
+          {% endfor %}
+          <td>
+            {% if edit_url %}
+              <a href="{% url edit_url item.id %}">
+                <i class="material-icons">edit</i>
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="{{ columns|length }}">No hay registros.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</main>
+{% endblock %}

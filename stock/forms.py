@@ -3,7 +3,6 @@ from .models import Category, Product, Purchase, Sale
 
 
 class CategoryForm(forms.ModelForm):
-    email = forms.EmailField(label="Tu email tonto")
     class Meta:
         model = Category
         fields = ["name"]
@@ -12,7 +11,8 @@ class CategoryForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ["name", "category", "description", "stock", "price", "average_cost"]
+        fields = ["name", "category", "description",
+                  "stock", "price", "average_cost"]
 
 
 class PurchaseForm(forms.ModelForm):
