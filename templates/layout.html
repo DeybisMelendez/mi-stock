@@ -18,10 +18,10 @@
             </li>
         </ul>
         <ul>
-        <li><a href="{% url 'category_list' %}">Categorías</a></li>
-        <li><a href="{% url 'product_list' %}">Productos</a></li>
-        <li><a href="{% url 'purchase_list' %}">Compras</a></li>
-        <li><a href="{% url 'sale_list' %}">Ventas</a></li>
+        <li><a href="{% url 'list' 'category' %}">Categorías</a></li>
+        <li><a href="{% url 'list' 'product' %}">Productos</a></li>
+        <li><a href="{% url 'list' 'sale' %}">Ventas</a></li>
+        <li><a href="{% url 'list' 'purchase' %}">Compras</a></li>
         </ul>
     </nav>
     {% include "includes/messages.html" %}

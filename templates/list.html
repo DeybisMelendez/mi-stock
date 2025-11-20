@@ -5,9 +5,7 @@
 
   <h1>{{ title }}</h1>
 
-  {% if create_url %}
-    <a href="{{ create_url }}" role="button"><i class="material-icons">add</i> Nuevo</a>
-  {% endif %}
+    <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
 
   <hr>
 
@@ -16,8 +14,8 @@
   <table>
     <thead>
       <tr>
-        {% for col in columns %}
-          <th>{{ col }}</th>
+        {% for field in fields %}
+          <th>{{ field }}</th>
         {% endfor %}
         <th>Opciones</th>
       </tr>
@@ -30,11 +28,9 @@
             <td>{{ item|getattribute:col }}</td>
           {% endfor %}
           <td>
-            {% if edit_url %}
-              <a href="{% url edit_url item.id %}">
-                <i class="material-icons">edit</i>
-              </a>
-            {% endif %}
+            <a href="{% url 'edit' model item.id %}">
+              <i class="material-icons">edit</i>
+            </a>
           </td>
         </tr>
       {% empty %}

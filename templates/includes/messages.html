@@ -2,7 +2,7 @@
     {% for message in messages %}
         <article x-data="{show : true}" x-show="show">
             {{ message }}
-            <button class="delete" aria-label="delete" @click="show=false"></button>
+            <button class="delete" aria-label="delete" @click="show=false"><i class="material-icons">delete</i></button>
         </article>
     {% endfor %}
 {% endif %}
