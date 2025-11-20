@@ -4,47 +4,51 @@ from django.urls import reverse
 from .models import Category, Product, Purchase, Sale
 from .forms import CategoryForm, ProductForm, PurchaseForm, SaleForm
 from django.apps import apps
+from django.db.models import Q
+from django.db.models import (
+    CharField, TextField, EmailField, SlugField, UUIDField
+)
 
 
 def generic_list_view(request, model_str):
     model = apps.get_model("stock", model_str.capitalize())
     items = model.objects.all()
+    fields = []
+    columns = []
+    title = ""
     context = {}
 
     match model_str:
         case "category":
-            context = {
-                "model": model_str,
-                "items": items,
-                "title": "Categoría",
-                "fields": ["Nombre"],
-                "columns": ["name"],
-            }
-        case "product":
-            context = {
-                "model": model_str,
-                "items": items,
-                "title": "Productos",
-                "fields": ["Nombre", "Categoría", "Stock", "Precio", "Costo Promedio"],
-                "columns": ["name", "category", "stock", "price", "average_cost"],
-            }
-        case "sale":
-            context = {
-                "model": model_str,
-                "items": items,
-                "title": "Ventas",
-                "fields": ["Fecha", "Producto", "Cantidad", "Precio", "Costo"],
-                "columns": ["created_at", "product", "quantity", "price", "cost"],
-            }
-        case "purchase":
-            context = {
-                "model": model_str,
-                "items": items,
-                "title": "Compras",
-                "fields": ["Fecha", "Producto", "Cantidad", "Costo"],
-                "columns": ["created_at", "product", "quantity", "cost"],
-            }
+            fields = ["Nombre"]
+            columns = ["name"]
+            title = "Categoría"
 
+        case "product":
+            fields = ["Nombre", "Categoría",
+                      "Stock", "Precio", "Costo Promedio"]
+            columns = ["name", "category", "stock", "price", "average_cost"]
+            title = "Productos"
+
+        case "sale":
+            fields = ["Fecha", "Producto", "Cantidad", "Precio", "Costo"]
+            columns = ["created_at", "product", "quantity", "price", "cost"]
+            title = "Ventas"
+
+        case "purchase":
+            fields = ["Fecha", "Producto", "Cantidad", "Costo"]
+            columns = ["created_at", "product", "quantity", "cost"]
+            title = "Compras"
+
+    search = request.GET.get("search")
+
+    context = {
+        "model": model_str,
+        "title": title,
+        "fields": fields,
+        "columns": columns,
+        "items": items,
+    }
     return render(request, "list.html", context)
 
 
@@ -71,7 +75,7 @@ def generic_form_view(request, model_str, pk=None):
         form = form_class(request.POST, instance=obj)
         if form.is_valid():
             form.save()
-            messages.success(request, f"{title} guardado correctamente.")
+            messages.success(request, f"Se ha guardado correctamente.")
             return redirect(success_url)
     else:
         form = form_class(instance=obj)
