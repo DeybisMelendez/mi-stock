@@ -1,5 +1,5 @@
 from django import forms
-from .models import Category, Product, Purchase, Sale
+from .models import Category, Product, Purchase, Sale, Expense
 
 
 class CategoryForm(forms.ModelForm):
@@ -25,3 +25,12 @@ class SaleForm(forms.ModelForm):
     class Meta:
         model = Sale
         fields = ["customer", "product", "quantity"]
+
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ["date", "amount", "description"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type": "date"}),
+        }

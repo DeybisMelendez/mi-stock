@@ -1,28 +1,192 @@
 {% extends "layout.html" %}
-{% block content %}
-<main class="container">
-  <h1>📦 Inventario</h1>
+{% block title %}Home{% endblock %}
 
-  <h2>Productos actuales</h2>
+{% block content %}
+
+<main class="container">
+
+  <h1>Dashboard del negocio</h1>
+
+
+  <!-- ======= ESTADÍSTICAS ======= -->
+  <section>
+    <h2>Resumen general</h2>
+
+    <ul>
+      <li><strong>Ingresos totales:</strong> ${{ total_income }}</li>
+      <li><strong>Ingresos últimos 30 días:</strong> ${{ total_income_30 }}</li>
+      <li><strong>Ventas totales:</strong> {{ total_sales_count }}</li>
+      <li><strong>Valor inventario actual:</strong> ${{ inventory_value }}</li>
+      <li><strong>Promedio ticket:</strong> ${{ avg_ticket }}</li>
+      <li><strong>Margen bruto total:</strong> ${{ margin_gross_total }}</li>
+      <li><strong>Ingresos mes actual:</strong> ${{ this_month_income }}</li>
+      <li><strong>Ingresos mes anterior:</strong> ${{ last_month_income }}</li>
+    </ul>
+  </section>
+
+
+  <!-- TOP PRODUCTOS -->
+  <section>
+    <h2>Top productos más vendidos</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Total vendido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in top_products %}
+        <tr>
+          <td>{{ item.product__name }}</td>
+          <td>{{ item.total_sold }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2">No hay ventas aún</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+
+  <!-- TOP 30 DÍAS -->
+  <section>
+    <h2>Top últimos 30 días</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Total vendido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in top_products_30 %}
+        <tr>
+          <td>{{ item.product__name }}</td>
+          <td>{{ item.total_sold }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2">No hay ventas aún</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+
+  <!-- TOP CATEGORIAS -->
+  <section>
+    <h2>Top categorías</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Vendidos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in top_categories %}
+        <tr>
+          <td>{{ item.product__category__name }}</td>
+          <td>{{ item.total_sold }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2">No hay ventas aún</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+
+
+  <!-- PRODUCTOS CON BAJO STOCK -->
+  <section>
+    <h2>Productos con bajo stock</h2>
+
+    <ul>
+      {% for p in low_stock %}
+      <li>{{ p.name }} — {{ p.stock }} unidades</li>
+      {% empty %}
+      <li>No hay productos con bajo stock</li>
+      {% endfor %}
+    </ul>
+  </section>
+  
+  <!-- INVENTARIO PROYECTADO -->
+<section>
+  <h2>Productos por agotar (estimado anual)</h2>
+
   <table>
     <thead>
       <tr>
-        <th>Nombre</th><th>Categoría</th><th>Stock</th><th>Precio</th><th>Costo Promedio</th>
+        <th>Producto</th>
+        <th>Stock actual</th>
+        <th>Vendidos últimos 12 meses</th>
+        <th>Cada cuánto vendo una unidad</th>
+        <th>Días estimados para agotar stock</th>
       </tr>
     </thead>
     <tbody>
-      {% for p in products %}
+      {% for row in business_projection %}
       <tr>
-        <td>{{ p.name }}</td>
-        <td>{{ p.category }}</td>
-        <td>{{ p.stock }}</td>
-        <td>${{ p.price }}</td>
-        <td>${{ p.average_cost }}</td>
+        <td>{{ row.product.name }}</td>
+        <td>{{ row.product.stock }}</td>
+        <td>{{ row.sold_365 }}</td>
+        <td>
+          {% if row.days_per_unit %}
+            {{ row.days_per_unit|floatformat:1 }} días / unidad
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          {% if row.days_to_runout %}
+            {{ row.days_to_runout|floatformat:0 }} días
+          {% else %}
+            —
+          {% endif %}
+        </td>
       </tr>
       {% empty %}
-      <tr><td colspan="5">Sin productos registrados.</td></tr>
+      <tr>
+        <td colspan="5">No hay datos suficientes para proyectar.</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
+</section>
+
+
+
+  <!-- GRÁFICO -->
+  <section>
+    <h2>Gráfico de productos más vendidos</h2>
+
+    <canvas id="topChart" height="120"></canvas>
+  </section>
+
 </main>
+
+
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('topChart');
+
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: [{% for i in top_products %}"{{ i.product__name }}",{% endfor %}],
+        datasets: [{
+            label: 'Ventas',
+            data: [{% for i in top_products %}{{ i.total_sold }},{% endfor %}],
+        }]
+    }
+});
+</script>
+
 {% endblock %}

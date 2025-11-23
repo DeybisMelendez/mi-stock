@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Purchase, Sale, Category
+from .models import Product, Purchase, Sale, Category, Expense
 
 admin.site.register(Category)
 
@@ -25,4 +25,12 @@ class SaleAdmin(admin.ModelAdmin):
     list_display = ("product", "quantity", "price", "date", "customer")
     list_filter = ("date", "product", "customer")
     date_hierarchy = "date"
+    ordering = ("-date",)
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ("date", "amount", "description", "created_at")
+    list_filter = ("date",)
+    search_fields = ("description",)
     ordering = ("-date",)
