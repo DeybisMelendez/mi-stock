@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}Estado de resultados{% endblock %}
+
+{% block content %}
+<main class="container">
+
+  <h1>Estado de resultados mensual</h1>
+
+  <h3>{{ start|date:"F Y" }}</h3>
+
+<section>
+  <ul>
+    <li><strong>Ingresos:</strong> C$ {{ income }}</li>
+    <li><strong>Costos:</strong> C$ {{ costs }}</li>
+    <li><strong>Utilidad bruta:</strong> C$ {{ gross_profit }}</li>
+    <li><strong>Gastos:</strong> C$ {{ expenses }}</li>
+    <li><strong>Utilidad neta:</strong> <mark>C$ {{ net_profit }}</mark></li>
+  </ul>
+</section>
+
+
+  <section>
+    <h3>Navegar</h3>
+
+    <a href="{% url 'month_result' offset|add:'1' %}" role="button">← Mes anterior</a>
+
+    {% if offset > 0 %}
+    <a href="{% url 'month_result' offset|add:'-1' %}" role="button">Mes siguiente →</a>
+    {% endif %}
+
+  </section>
+
+  <section>
+    <a href="{% url 'month_result' 0 %}">Volver al mes actual</a>
+  </section>
+
+</main>
+{% endblock %}

@@ -6,6 +6,9 @@ urlpatterns = [
     path("<str:model_str>", views.generic_list_view, name="list"),
     path("<str:model_str>/new", views.generic_form_view, name="new"),
     path("<str:model_str>/<int:pk>/edit", views.generic_form_view, name="edit"),
+    path("resultados/<int:month_offset>/",
+         views.month_result, name="month_result"),
+    path("resultados/", views.month_result, {"month_offset": 0}),
 ]
 """
     path("categories/", views.category_list, name="category_list"),

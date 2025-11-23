@@ -10,7 +10,7 @@ from django.db.models import (
 )
 from django.db.models import Sum, Count, Avg, F
 from django.utils.timezone import now
-from datetime import timedelta
+from datetime import timedelta, date
 
 
 def generic_list_view(request, model_str):
@@ -224,3 +224,67 @@ def home(request):
             "business_projection": business_projection,
         },
     )
+
+
+def month_range_from_offset(month_offset):
+    today = now().date()
+
+    # mes actual menos offset
+    year = today.year
+    month = today.month - month_offset
+
+    while month <= 0:
+        month += 12
+        year -= 1
+
+    first_day = date(year, month, 1)
+
+    # último día del mes
+    if month == 12:
+        last_day = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = date(year, month + 1, 1) - timedelta(days=1)
+
+    return first_day, last_day
+
+
+def month_result(request, month_offset=0):
+
+    start, end = month_range_from_offset(month_offset)
+
+    # ingresos del mes
+    income = (
+        Sale.objects.filter(date__date__range=[start, end])
+        .aggregate(total=Sum(F("quantity") * F("price")))
+    )["total"] or 0
+
+    # costo del mes
+    costs = (
+        Sale.objects.filter(date__date__range=[start, end])
+        .aggregate(total=Sum(F("quantity") * F("cost")))
+    )["total"] or 0
+
+    # gastos operativos del mes
+    expenses = (
+        Expense.objects.filter(date__date__range=[start, end])
+        .aggregate(total=Sum("amount"))
+    )["total"] or 0
+
+    # utilidad bruta
+    gross_profit = income - costs
+
+    # utilidad neta
+    net_profit = income - costs - expenses
+
+    return render(request, "month_result.html", {
+        "start": start,
+        "end": end,
+        "offset": month_offset,
+
+        "income": income,
+        "costs": costs,
+        "expenses": expenses,
+
+        "gross_profit": gross_profit,
+        "net_profit": net_profit,
+    })
