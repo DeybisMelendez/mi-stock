@@ -6,6 +6,16 @@
   <h1>{{ title }}</h1>
 
     <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
+    
+    <form method="get">
+      <input
+        type="search"
+        name="search"
+        placeholder="Buscar..."
+        value="{{ search }}"
+      >
+      <button type="submit">Buscar</button>
+    </form>
 
   <hr>
 
@@ -19,25 +29,41 @@
       </tr>
     </thead>
 
-    <tbody>
-      {% for item in items %}
-        <tr>
-          {% for col in columns %}
-            <td>{{ item|getattribute:col }}</td>
-          {% endfor %}
-          <td>
-            <a href="{% url 'edit' model item.id %}">
-              <i class="material-icons">edit</i>
-            </a>
-          </td>
-        </tr>
-      {% empty %}
-        <tr>
-          <td colspan="{{ columns|length }}">No hay registros.</td>
-        </tr>
-      {% endfor %}
-    </tbody>
+  <tbody>
+    {% for item in page_obj %}
+      <tr>
+        {% for col in columns %}
+          <td>{{ item|getattribute:col }}</td>
+        {% endfor %}
+        <td>
+          <a href="{% url 'edit' model item.id %}">
+            <i class="material-icons">edit</i>
+          </a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="{{ columns|length|add:1 }}">No hay registros.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
   </table>
+  <nav class="pagination">
+    {% if page_obj.has_previous %}
+      <a href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo;</a>
+      <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Anterior</a>
+    {% endif %}
+
+    <span>
+      Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+    </span>
+
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Siguiente</a>
+      <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">&raquo;</a>
+    {% endif %}
+  </nav>
+
 
 </main>
 {% endblock %}

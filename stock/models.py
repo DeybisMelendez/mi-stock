@@ -27,6 +27,9 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        ordering = ['name', "category__name"]
+
 
 class Purchase(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -38,6 +41,9 @@ class Purchase(models.Model):
 
     def get_total(self):
         return self.quantity * self.cost
+
+    class Meta:
+        ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -76,6 +82,9 @@ class Sale(models.Model):
     def get_total(self):
         return self.quantity * self.price
 
+    class Meta:
+        ordering = ['-created_at']
+
     def save(self, *args, **kwargs):
         if not self.pk:
             self.product.stock -= self.quantity
@@ -108,3 +117,6 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"C$ {self.amount} - {self.description}"
+
+    class Meta:
+        ordering = ['-created_at']

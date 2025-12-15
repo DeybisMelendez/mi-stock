@@ -11,15 +11,18 @@ from django.db.models import (
 from django.db.models import Sum, Count, Avg, F
 from django.utils.timezone import now
 from datetime import timedelta, date
+from django.core.paginator import Paginator
+
+PAGINATION = 20
 
 
 def generic_list_view(request, model_str):
     model = apps.get_model("stock", model_str.capitalize())
-    items = model.objects.all()
+    queryset = model.objects.all()
+
     fields = []
     columns = []
     title = ""
-    context = {}
 
     match model_str:
         case "category":
@@ -30,27 +33,45 @@ def generic_list_view(request, model_str):
         case "product":
             fields = ["Nombre", "Categoría",
                       "Stock", "Precio", "Costo Promedio"]
-            columns = ["name", "category", "stock", "price", "average_cost"]
+            columns = ["name", "category__name",
+                       "stock", "price", "average_cost"]
             title = "Productos"
 
         case "sale":
             fields = ["Fecha", "Producto", "Cantidad", "Precio", "Costo"]
-            columns = ["created_at", "product", "quantity", "price", "cost"]
+            columns = ["created_at", "product__name",
+                       "quantity", "price", "cost"]
             title = "Ventas"
 
         case "purchase":
             fields = ["Fecha", "Producto", "Cantidad", "Costo"]
-            columns = ["created_at", "product", "quantity", "cost"]
+            columns = ["created_at", "product__name", "quantity", "cost"]
             title = "Compras"
 
-    search = request.GET.get("search")
+        case "expense":
+            fields = ["Fecha", "Descripción", "Monto"]
+            columns = ["created_at", "description", "amount"]
+            title = "Gastos"
+
+    # -------- SEARCH --------
+    search = request.GET.get("search", "").strip()
+    if search:
+        q = Q()
+        for col in columns:
+            q |= Q(**{f"{col}__icontains": search})
+        queryset = queryset.filter(q)
+
+    paginator = Paginator(queryset, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
 
     context = {
         "model": model_str,
         "title": title,
         "fields": fields,
         "columns": columns,
-        "items": items,
+        "page_obj": page_obj,
+        "search": search,
     }
     return render(request, "list.html", context)
 
