@@ -125,7 +125,7 @@ def home(request):
     top_products = (
         Sale.objects.values("product__name")
         .annotate(total_sold=Sum("quantity"))
-        .order_by("-total_sold")[:5]
+        .order_by("-total_sold")[:10]
     )
 
     # top 30 days
