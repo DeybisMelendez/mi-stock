@@ -21,5 +21,8 @@
 ## 🛠️ Tecnologías usadas
 
 - [Python 3.x](https://www.python.org/)
+- [Pico CSS](https://picocss.com/)
+- [Google Icons](https://fonts.googleapis.com/icon?family=Material+Icons)
+- [AlpineJS](https://alpinejs.dev/)
 - [Django 5.x](https://www.djangoproject.com/)
 - SQLite (base de datos por defecto)
