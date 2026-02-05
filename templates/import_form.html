@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Restaurar datos desde un archivo de respaldo</h2>
+    <p>Sube un archivo JSON generado por la función de respaldo para restaurar todos los datos (categorías, productos, compras, ventas y gastos).</p>
+    <p><strong>Advertencia:</strong> Esta acción sobrescribirá cualquier dato existente con los mismos IDs. Asegúrate de tener un respaldo actualizado antes de proceder.</p>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div>
+            <label for="backup_file">Archivo de respaldo (.json)</label>
+            <input type="file" id="backup_file" name="backup_file" accept=".json" required>
+        </div>
+        <div>
+            <button type="submit" class="secondary">Restaurar datos</button>
+            <a href="{% url 'home' %}" class="contrast">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -14,6 +14,8 @@ from django.utils.timezone import now
 from datetime import timedelta, date
 import json
 from django.core.paginator import Paginator
+from django.http import HttpResponse, JsonResponse
+from django.core import serializers
 
 
 @login_required
@@ -465,3 +467,62 @@ def user_profile(request):
     return render(request, "user_profile.html", {
         "user": request.user
     })
+
+@login_required
+def export_data(request):
+    from datetime import datetime
+    
+    models_to_export = ["Category", "Product", "Purchase", "Sale", "Expense"]
+    data = {
+        "metadata": {
+            "export_date": datetime.now().isoformat(),
+            "version": "1.0",
+            "model_count": len(models_to_export),
+        },
+        "data": {}
+    }
+    
+    for model_name in models_to_export:
+        model = apps.get_model("stock", model_name)
+        queryset = model.objects.all()
+        # Use Django's JSON serializer which handles Decimal, datetime, etc.
+        serialized_json = serializers.serialize("json", queryset)
+        serialized_data = json.loads(serialized_json)
+        data["data"][model_name] = serialized_data
+    
+    response = HttpResponse(json.dumps(data, indent=2, ensure_ascii=False), content_type="application/json")
+    response["Content-Disposition"] = 'attachment; filename="mi-stock-backup-{}.json"'.format(datetime.now().strftime("%Y%m%d-%H%M%S"))
+    return response
+
+@login_required
+def import_data(request):
+    if request.method == "POST" and request.FILES.get("backup_file"):
+        uploaded_file = request.FILES["backup_file"]
+        try:
+            content = uploaded_file.read().decode("utf-8")
+            data = json.loads(content)
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            messages.error(request, f"Error al leer el archivo: {e}")
+            return redirect("home")
+        
+        # Importar en orden para respetar dependencias
+        models_order = ["Category", "Product", "Purchase", "Sale", "Expense"]
+        imported_counts = {}
+        
+        for model_name in models_order:
+            if model_name not in data.get("data", {}):
+                continue
+            serialized_list = data["data"][model_name]
+            # Convertir la lista de dicts a JSON string para deserialización
+            json_str = json.dumps(serialized_list)
+            imported = 0
+            for obj in serializers.deserialize("json", json_str):
+                obj.save()
+                imported += 1
+            imported_counts[model_name] = imported
+        
+        messages.success(request, f"Datos importados exitosamente: {imported_counts}")
+        return redirect("home")
+    
+    # Si no es POST, mostrar formulario
+    return render(request, "import_form.html")
