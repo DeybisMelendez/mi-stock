@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>Perfil de usuario</h1>
+  
+  <article>
+    <header>
+      <h2>Información de cuenta</h2>
+    </header>
+    <dl>
+      <dt>Nombre de usuario</dt>
+      <dd>{{ user.username }}</dd>
+      
+      <dt>Correo electrónico</dt>
+      <dd>{{ user.email|default:"No especificado" }}</dd>
+      
+      <dt>Último inicio de sesión</dt>
+      <dd>{{ user.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</dd>
+      
+      <dt>Fecha de registro</dt>
+      <dd>{{ user.date_joined|date:"d/m/Y H:i" }}</dd>
+    </dl>
+    
+    <footer>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="secondary">Cerrar sesión</button>
+      </form>
+    </footer>
+  </article>
+</main>
+{% endblock %}

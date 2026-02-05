@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from .models import Category, Product, Purchase, Sale, Expense
 from .forms import CategoryForm, ProductForm, PurchaseForm, SaleForm, ExpenseForm
@@ -14,6 +15,7 @@ from datetime import timedelta, date
 from django.core.paginator import Paginator
 
 
+@login_required
 def generic_list_view(request, model_str):
     model = apps.get_model("stock", model_str.capitalize())
     queryset = model.objects.all()
@@ -61,6 +63,7 @@ def generic_list_view(request, model_str):
     return render(request, "list.html", context)
 
 
+@login_required
 def generic_form_view(request, model_str, pk=None):
     model = apps.get_model("stock", model_str.capitalize())
     obj = get_object_or_404(model, pk=pk) if pk else None
@@ -99,6 +102,7 @@ def generic_form_view(request, model_str, pk=None):
     return render(request, "form.html", context)
 
 
+@login_required
 def home(request):
     products = Product.objects.filter(stock__gt=0).select_related('category')
 
@@ -254,6 +258,7 @@ def month_range_from_offset(month_offset):
     return first_day, last_day
 
 
+@login_required
 def month_result(request, month_offset=0):
 
     start, end = month_range_from_offset(month_offset)
@@ -293,4 +298,11 @@ def month_result(request, month_offset=0):
 
         "gross_profit": gross_profit,
         "net_profit": net_profit,
+    })
+
+
+@login_required
+def user_profile(request):
+    return render(request, "user_profile.html", {
+        "user": request.user
     })

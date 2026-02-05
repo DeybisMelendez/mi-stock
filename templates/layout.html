@@ -13,18 +13,30 @@
 <body>
     <nav class="container">
         <ul>
+            <li><a href="{% url 'home' %}"><strong>Mi Stock</strong></a></li>
+        </ul>
+        {% if user.is_authenticated %}
+        <ul>
             <li>
-                <a href="{% url 'home' %}">Inicio</a>
+                <details class="dropdown">
+                    <summary><span class="material-icons" style="vertical-align: middle; margin-right: 4px;">menu</span> Menú</summary>
+                    <ul dir="rtl">
+                        <li><a href="{% url 'list' 'category' %}">Categorías</a></li>
+                        <li><a href="{% url 'list' 'product' %}">Productos</a></li>
+                        <li><a href="{% url 'list' 'sale' %}">Ventas</a></li>
+                        <li><a href="{% url 'list' 'purchase' %}">Compras</a></li>
+                        <li><a href="{% url 'list' 'expense' %}">Gastos</a></li>
+                        <li><a href="{% url 'month_result' '0' %}">Resultados</a></li>
+                        <li><a href="{% url 'user_profile' %}">Perfil</a></li>
+                    </ul>
+                </details>
             </li>
         </ul>
+        {% else %}
         <ul>
-        <li><a href="{% url 'list' 'category' %}">Categorías</a></li>
-        <li><a href="{% url 'list' 'product' %}">Productos</a></li>
-        <li><a href="{% url 'list' 'sale' %}">Ventas</a></li>
-        <li><a href="{% url 'list' 'purchase' %}">Compras</a></li>
-        <li><a href="{% url 'list' 'expense' %}">Gastos</a></li>
-        <li><a href="{% url 'month_result' '0' %}">Resultados</a></li>
+            <li><a href="{% url 'login' %}">Iniciar sesión</a></li>
         </ul>
+        {% endif %}
     </nav>
     {% include "includes/messages.html" %}
     {% block content %}

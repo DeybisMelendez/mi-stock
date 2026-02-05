@@ -9,6 +9,7 @@ urlpatterns = [
     path("resultados/<int:month_offset>/",
          views.month_result, name="month_result"),
     path("resultados/", views.month_result, {"month_offset": 0}),
+    path("perfil/", views.user_profile, name="user_profile"),
 ]
 """
     path("categories/", views.category_list, name="category_list"),
