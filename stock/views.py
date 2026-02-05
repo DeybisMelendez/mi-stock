@@ -13,8 +13,6 @@ from django.utils.timezone import now
 from datetime import timedelta, date
 from django.core.paginator import Paginator
 
-PAGINATION = 20
-
 
 def generic_list_view(request, model_str):
     model = apps.get_model("stock", model_str.capitalize())
@@ -53,25 +51,12 @@ def generic_list_view(request, model_str):
             columns = ["created_at", "description", "amount"]
             title = "Gastos"
 
-    # -------- SEARCH --------
-    search = request.GET.get("search", "").strip()
-    if search:
-        q = Q()
-        for col in columns:
-            q |= Q(**{f"{col}__icontains": search})
-        queryset = queryset.filter(q)
-
-    paginator = Paginator(queryset, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
     context = {
         "model": model_str,
         "title": title,
         "fields": fields,
         "columns": columns,
-        "page_obj": page_obj,
-        "search": search,
+        "page_obj": queryset,
     }
     return render(request, "list.html", context)
 

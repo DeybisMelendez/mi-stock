@@ -7,7 +7,7 @@
   <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
   <hr>
 
-  <div id="gridjs-table" class="gridjs-container" style="width: 100%;"></div>
+  <div id="gridjs-table"style="width: 100%;"></div>
   <table id="data-table" style="display:none">
     <thead>
       <tr>
@@ -130,6 +130,9 @@
     }
     .gridjs-th-content {
       cursor: pointer;
+    }
+    .gridjs-th {
+      min-width: 0!important;
     }
   </style>
 </main>
