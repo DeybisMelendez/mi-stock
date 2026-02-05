@@ -1,6 +1,6 @@
 # 📦 Mi Stock
 
-**Mi Stock** es una aplicación web de gestión de inventario desarrollada con Django. Pensada para uso personal o pequeños negocios, permite registrar productos, controlar entradas (compras), salidas (ventas) y mantener actualizado el stock de forma automática.
+**Mi Stock** es una aplicación web de gestión de inventario desarrollada con Django. Pensada para uso personal o pequeños negocios, permite registrar productos, controlar entradas (compras), salidas (ventas) y mantener actualizado el stock de forma automática. Utiliza el costo promedio para el cálculo de costos de productos.
 
 ---
 
@@ -8,9 +8,12 @@
 
 - Registro y clasificación de productos por categoría
 - Control de compras (entradas) con registro de costos
+- Control de gastos
 - Control de ventas (salidas) con cálculo de ingresos
 - Actualización automática del inventario
 - Cálculo de subtotales y totales
+- Cálculo de resultados mensuales automático
+- Estadísticas y gráficos sencillos
 - Interfaz sencilla para comenzar rápidamente
 
 ---
