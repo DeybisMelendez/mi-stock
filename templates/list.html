@@ -4,22 +4,11 @@
 <main class="container" x-data="{ search: '' }">
 
   <h1>{{ title }}</h1>
-
-    <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
-    
-    <form method="get">
-      <input
-        type="search"
-        name="search"
-        placeholder="Buscar..."
-        value="{{ search }}"
-      >
-      <button type="submit">Buscar</button>
-    </form>
-
+  <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
   <hr>
 
-  <table>
+  <div id="gridjs-table" class="gridjs-container" style="width: 100%;"></div>
+  <table id="data-table" style="display:none">
     <thead>
       <tr>
         {% for field in fields %}
@@ -48,22 +37,79 @@
     {% endfor %}
   </tbody>
   </table>
-  <nav class="pagination">
-    {% if page_obj.has_previous %}
-      <a href="?page=1{% if search %}&search={{ search }}{% endif %}">&laquo;</a>
-      <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Anterior</a>
-    {% endif %}
 
-    <span>
-      Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-    </span>
-
-    {% if page_obj.has_next %}
-      <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Siguiente</a>
-      <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">&raquo;</a>
-    {% endif %}
-  </nav>
-
-
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const table = document.getElementById('data-table');
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+      const rows = table.querySelectorAll('tbody tr');
+      const data = Array.from(rows).map(row => {
+        const cells = row.querySelectorAll('td');
+        return Array.from(cells).map(cell => cell.innerHTML.trim());
+      });
+      
+      // Si no hay datos, mostrar mensaje
+      if (data.length === 0) {
+        document.getElementById('gridjs-table').innerHTML = '<p>No hay registros.</p>';
+        return;
+      }
+      
+      // Configurar columnas con sorting personalizado
+      const columns = headers.map((header, index) => {
+        // Última columna (Opciones) no es ordenable
+        if (index === headers.length - 1) {
+          return { name: header, sort: false };
+        }
+        return {
+          name: header,
+          sort: {
+            icon: (order) => {
+              const icon = document.createElement('i');
+              icon.className = 'material-icons gridjs-sort-icon';
+              if (order === 'asc') {
+                icon.textContent = 'arrow_upward';
+              } else if (order === 'desc') {
+                icon.textContent = 'arrow_downward';
+              } else {
+                icon.textContent = 'unfold_more';
+              }
+              return icon;
+            }
+          }
+        };
+      });
+      
+      new gridjs.Grid({
+        columns: columns,
+        data: data,
+        search: true,
+        pagination: {
+          limit: 20,
+          summary: true,
+        },
+        sort: true,
+        language: {
+          search: {
+            placeholder: 'Buscar...'
+          },
+          pagination: {
+            previous: 'Anterior',
+            next: 'Siguiente',
+            showing: 'Mostrando',
+            results: () => 'registros'
+          }
+        }
+      }).render(document.getElementById('gridjs-table'));
+      document.querySelectorAll(".gridjs-pages").forEach(el => el.setAttribute("role", "group"));
+    });
+  </script>
+  <style>
+    .gridjs-th-content:hover {
+    cursor: pointer;
+    }
+    .gridjs-sort {
+    display: none;
+    }
+  </style>
 </main>
 {% endblock %}

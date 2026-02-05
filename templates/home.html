@@ -29,7 +29,8 @@
   <section>
     <h2>Top productos más vendidos</h2>
 
-    <table>
+    <div id="top-products-grid" class="gridjs-container"></div>
+    <table id="top-products-table" class="gridjs-table" style="display:none">
       <thead>
         <tr>
           <th>Producto</th>
@@ -54,7 +55,8 @@
   <section>
     <h2>Top últimos 30 días</h2>
 
-    <table>
+    <div id="top-products-30-grid" class="gridjs-container"></div>
+    <table id="top-products-30-table" class="gridjs-table" style="display:none">
       <thead>
         <tr>
           <th>Producto</th>
@@ -79,7 +81,8 @@
   <section>
     <h2>Top categorías</h2>
 
-    <table>
+    <div id="top-categories-grid" class="gridjs-container"></div>
+    <table id="top-categories-table" class="gridjs-table" style="display:none">
       <thead>
         <tr>
           <th>Categoría</th>
@@ -118,44 +121,45 @@
 <section>
   <h2>Productos por agotar (estimado anual)</h2>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th>Stock actual</th>
-        <th>Vendidos últimos 12 meses</th>
-        <th>Cada cuánto vendo una unidad</th>
-        <th>Días estimados para agotar stock</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in business_projection %}
-      <tr>
-        <td>{{ row.product.name }}</td>
-        <td>{{ row.product.stock }}</td>
-        <td>{{ row.sold_365 }}</td>
-        <td>
-          {% if row.days_per_unit %}
-            {{ row.days_per_unit|floatformat:1 }} días / unidad
-          {% else %}
-            —
-          {% endif %}
-        </td>
-        <td>
-          {% if row.days_to_runout %}
-            {{ row.days_to_runout|floatformat:0 }} días
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="5">No hay datos suficientes para proyectar.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+   <div id="business-projection-grid" class="gridjs-container"></div>
+   <table id="business-projection-table" class="gridjs-table" style="display:none">
+     <thead>
+       <tr>
+         <th>Producto</th>
+         <th>Stock actual</th>
+         <th>Vendidos últimos 12 meses</th>
+         <th>Cada cuánto vendo una unidad</th>
+         <th>Días estimados para agotar stock</th>
+       </tr>
+     </thead>
+     <tbody>
+       {% for row in business_projection %}
+       <tr>
+         <td>{{ row.product.name }}</td>
+         <td>{{ row.product.stock }}</td>
+         <td>{{ row.sold_365 }}</td>
+         <td>
+           {% if row.days_per_unit %}
+             {{ row.days_per_unit|floatformat:1 }} días / unidad
+           {% else %}
+             —
+           {% endif %}
+         </td>
+         <td>
+           {% if row.days_to_runout %}
+             {{ row.days_to_runout|floatformat:0 }} días
+           {% else %}
+             —
+           {% endif %}
+         </td>
+       </tr>
+       {% empty %}
+       <tr>
+         <td colspan="5">No hay datos suficientes para proyectar.</td>
+       </tr>
+       {% endfor %}
+     </tbody>
+   </table>
 </section>
 
 
@@ -186,7 +190,52 @@ new Chart(ctx, {
             data: [{% for i in top_products %}{{ i.total_sold }},{% endfor %}],
         }]
     }
-});
-</script>
+ });
+ </script>
 
-{% endblock %}
+ <script>
+   document.addEventListener('DOMContentLoaded', function() {
+     // Para cada tabla con clase gridjs-table
+     document.querySelectorAll('table.gridjs-table').forEach(function(table) {
+       const tableId = table.id;
+       const containerId = tableId.replace('-table', '-grid');
+       const container = document.getElementById(containerId);
+       if (!container) return;
+       
+       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+       const rows = table.querySelectorAll('tbody tr');
+       const data = Array.from(rows).map(row => {
+         const cells = row.querySelectorAll('td');
+         return Array.from(cells).map(cell => cell.innerHTML.trim());
+       });
+       
+       if (data.length === 0) {
+         container.innerHTML = '<p>No hay datos.</p>';
+         return;
+       }
+       
+       const columns = headers.map(header => ({ name: header }));
+       
+       new gridjs.Grid({
+         columns: columns,
+         data: data,
+         search: true,
+         pagination: data.length > 5 ? { limit: 5, summary: true } : false,
+         sort: true,
+         language: {
+           search: {
+             placeholder: 'Buscar...'
+           },
+           pagination: {
+             previous: 'Anterior',
+             next: 'Siguiente',
+             showing: 'Mostrando',
+             results: () => 'registros'
+           }
+         }
+       }).render(container);
+     });
+   });
+ </script>
+
+ {% endblock %}
