@@ -7,61 +7,40 @@
   <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
   <hr>
 
-  <div id="gridjs-table"style="width: 100%;"></div>
-  <table id="data-table" style="display:none">
-    <thead>
-      <tr>
-        {% for field in fields %}
-          <th>{{ field }}</th>
-        {% endfor %}
-        <th>Acciones</th>
-      </tr>
-    </thead>
-
-  <tbody>
-    {% for item in page_obj %}
-      <tr>
-        {% for col in columns %}
-          <td>{{ item|getattribute:col }}</td>
-        {% endfor %}
-        <td>
-          <a href="{% url 'edit' model item.id %}">
-            <i class="material-icons">edit</i>
-          </a>
-        </td>
-      </tr>
-    {% empty %}
-      <tr>
-        <td colspan="{{ columns|length|add:1 }}">No hay registros.</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-  </table>
+  <div id="gridjs-table" style="width: 100%;"></div>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const table = document.getElementById('data-table');
-      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-      const rows = table.querySelectorAll('tbody tr');
-      
-      // Procesar datos, manejando la columna de acciones de forma especial
-      const data = Array.from(rows).map(row => {
-        const cells = row.querySelectorAll('td');
-        return Array.from(cells).map((cell, cellIndex) => {
-          // Si es la última columna (Acciones), extraer el enlace y crear elemento funcional
-          if (cellIndex === cells.length - 1) {
-            const link = cell.querySelector('a');
-            if (link) {
-              const newLink = document.createElement('a');
-              newLink.href = link.href;
-              newLink.innerHTML = '<i class="material-icons">edit</i>';
-              newLink.title = 'Editar';
-              return newLink;
-            }
-            return '';
+        const headers = [
+        {% for field in fields %}
+          '{{ field|escapejs }}'{% if not forloop.last %},{% endif %}
+        {% endfor %}
+        ,'Acciones'
+      ];
+       const rawData = [
+        {% for item in page_obj %}
+          {% url "edit" model item.id as edit_url %}
+          [
+            {% for col in columns %}
+              '{{ item|format_value:col|escapejs }}'{% if not forloop.last %},{% endif %}
+            {% endfor %}
+            ,'{{ edit_url|escapejs }}'
+          ]{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ];
+      // Transformar rawData en data, convirtiendo la última columna (URL) en elemento DOM
+      const data = rawData.map(row => {
+        return row.map((cell, cellIndex) => {
+          // Si es la última columna (Acciones), crear enlace
+          if (cellIndex === row.length - 1) {
+            const newLink = document.createElement('a');
+            newLink.href = cell;
+            newLink.innerHTML = '<i class="material-icons">edit</i>';
+            newLink.title = 'Editar';
+            return newLink;
           }
-          // Para otras columnas, usar el texto contenido
-          return cell.textContent.trim();
+          // Para otras columnas, ya es string
+          return cell;
         });
       });
       
