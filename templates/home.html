@@ -1,241 +1,293 @@
 {% extends "layout.html" %}
-{% block title %}Home{% endblock %}
-
 {% block content %}
 
 <main class="container">
-
-  <h1>Dashboard del negocio</h1>
-
-
-  <!-- ======= ESTADÍSTICAS ======= -->
-  <section>
-    <h2>Resumen general</h2>
-
-    <ul>
-      <li><strong>Ingresos totales:</strong> ${{ total_income }}</li>
-      <li><strong>Ingresos últimos 30 días:</strong> ${{ total_income_30 }}</li>
-      <li><strong>Ventas totales:</strong> {{ total_sales_count }}</li>
-      <li><strong>Valor inventario actual:</strong> ${{ inventory_value }}</li>
-      <li><strong>Promedio ticket:</strong> ${{ avg_ticket }}</li>
-      <li><strong>Margen bruto total:</strong> ${{ margin_gross_total }}</li>
-      <li><strong>Ingresos mes actual:</strong> ${{ this_month_income }}</li>
-      <li><strong>Ingresos mes anterior:</strong> ${{ last_month_income }}</li>
-    </ul>
-  </section>
-
-
-  <!-- TOP PRODUCTOS -->
-  <section>
-    <h2>Top productos más vendidos</h2>
-
-    <div id="top-products-grid" class="gridjs-container"></div>
-    <table id="top-products-table" class="gridjs-table" style="display:none">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Total vendido</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in top_products %}
-        <tr>
-          <td>{{ item.product__name }}</td>
-          <td>{{ item.total_sold }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="2">No hay ventas aún</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-
-
-  <!-- TOP 30 DÍAS -->
-  <section>
-    <h2>Top últimos 30 días</h2>
-
-    <div id="top-products-30-grid" class="gridjs-container"></div>
-    <table id="top-products-30-table" class="gridjs-table" style="display:none">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Total vendido</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in top_products_30 %}
-        <tr>
-          <td>{{ item.product__name }}</td>
-          <td>{{ item.total_sold }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="2">No hay ventas aún</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-
-
-  <!-- TOP CATEGORIAS -->
-  <section>
-    <h2>Top categorías</h2>
-
-    <div id="top-categories-grid" class="gridjs-container"></div>
-    <table id="top-categories-table" class="gridjs-table" style="display:none">
-      <thead>
-        <tr>
-          <th>Categoría</th>
-          <th>Vendidos</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in top_categories %}
-        <tr>
-          <td>{{ item.product__category__name }}</td>
-          <td>{{ item.total_sold }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="2">No hay ventas aún</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-
-
-
-  <!-- PRODUCTOS CON BAJO STOCK -->
-  <section>
-    <h2>Productos con bajo stock</h2>
-
-    <ul>
-      {% for p in low_stock %}
-      <li>{{ p.name }} — {{ p.stock }} unidades</li>
-      {% empty %}
-      <li>No hay productos con bajo stock</li>
-      {% endfor %}
-    </ul>
-  </section>
   
-  <!-- INVENTARIO PROYECTADO -->
-<section>
-  <h2>Productos por agotar (estimado anual)</h2>
+  <!-- ENCABEZADO -->
+  <header style="margin-bottom: 2rem;">
+    <h1>Dashboard del Negocio</h1>
+    <p>Resumen de estadísticas para toma de decisiones - {{ today|date:"d/m/Y" }}</p>
+  </header>
 
-   <div id="business-projection-grid" class="gridjs-container"></div>
-   <table id="business-projection-table" class="gridjs-table" style="display:none">
-     <thead>
-       <tr>
-         <th>Producto</th>
-         <th>Stock actual</th>
-         <th>Vendidos últimos 12 meses</th>
-         <th>Cada cuánto vendo una unidad</th>
-         <th>Días estimados para agotar stock</th>
-       </tr>
-     </thead>
-     <tbody>
-       {% for row in business_projection %}
-       <tr>
-         <td>{{ row.product.name }}</td>
-         <td>{{ row.product.stock }}</td>
-         <td>{{ row.sold_365 }}</td>
-         <td>
-           {% if row.days_per_unit %}
-             {{ row.days_per_unit|floatformat:1 }} días / unidad
-           {% else %}
-             —
-           {% endif %}
-         </td>
-         <td>
-           {% if row.days_to_runout %}
-             {{ row.days_to_runout|floatformat:0 }} días
-           {% else %}
-             —
-           {% endif %}
-         </td>
-       </tr>
-       {% empty %}
-       <tr>
-         <td colspan="5">No hay datos suficientes para proyectar.</td>
-       </tr>
-       {% endfor %}
-     </tbody>
-   </table>
-</section>
+  <!-- KPI CARDS -->
+  <section style="margin-bottom: 3rem;">
+    <h2>Desempeño Financiero</h2>
+    
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+      
+      <!-- INGRESOS HOY -->
+      <article style="padding: 1rem; border-left: 4px solid var(--primary);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Hoy</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ income_today|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if income_yesterday > 0 %}
+            {% if growth_today > 0 %}
+              <span style="color: var(--success)">↗ {{ growth_today|floatformat:1 }}%</span> vs ayer
+            {% elif growth_today < 0 %}
+              <span style="color: var(--error)">↘ {{ growth_today|floatformat:1 }}%</span> vs ayer
+            {% else %}
+              <span>→ Igual que ayer</span>
+            {% endif %}
+          {% else %}
+            <span>Sin datos ayer</span>
+          {% endif %}
+          • {{ sales_count_today }} ventas
+        </footer>
+      </article>
+      
+      <!-- ÚLTIMOS 7 DÍAS -->
+      <article style="padding: 1rem; border-left: 4px solid var(--secondary);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Últimos 7 días</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ income_last_7_days|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if income_previous_week > 0 %}
+            {% if growth_week > 0 %}
+              <span style="color: var(--success)">↗ {{ growth_week|floatformat:1 }}%</span> vs semana anterior
+            {% elif growth_week < 0 %}
+              <span style="color: var(--error)">↘ {{ growth_week|floatformat:1 }}%</span> vs semana anterior
+            {% else %}
+              <span>→ Igual que semana anterior</span>
+            {% endif %}
+          {% else %}
+            <span>Sin datos semana anterior</span>
+          {% endif %}
+          • {{ sales_count_last_7_days }} ventas
+        </footer>
+      </article>
+      
+      <!-- MES ACTUAL -->
+      <article style="padding: 1rem; border-left: 4px solid var(--contrast);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Mes Actual</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ income_this_month|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if income_last_month > 0 %}
+            {% if growth_month > 0 %}
+              <span style="color: var(--success)">↗ {{ growth_month|floatformat:1 }}%</span> vs mes anterior
+            {% elif growth_month < 0 %}
+              <span style="color: var(--error)">↘ {{ growth_month|floatformat:1 }}%</span> vs mes anterior
+            {% else %}
+              <span>→ Igual que mes anterior</span>
+            {% endif %}
+          {% else %}
+            <span>Sin datos mes anterior</span>
+          {% endif %}
+          • Desde {{ month_start|date:"d/m" }}
+        </footer>
+      </article>
+      
+      <!-- ÚLTIMOS 30 DÍAS -->
+      <article style="padding: 1rem; border-left: 4px solid var(--highlight);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Últimos 30 días</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ income_last_30_days|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          <span>Margen: C$ {{ margin_last_30_days|floatformat:2 }}</span><br>
+          <span>Gastos: C$ {{ expenses_last_30_days|floatformat:2 }}</span>
+        </footer>
+      </article>
+      
+    </div>
+  </section>
+
+  <!-- GRÁFICOS -->
+  <section style="margin-bottom: 3rem;">
+    <h2>Tendencias y Distribución</h2>
+    
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+      
+      <!-- GRÁFICO DE VENTAS ÚLTIMOS 7 DÍAS -->
+      <article>
+        <header>
+          <h3>Ventas últimos 7 días</h3>
+        </header>
+        <canvas id="salesChart" height="200"></canvas>
+      </article>
+      
+      <!-- GRÁFICO DE DISTRIBUCIÓN POR CATEGORÍA -->
+      <article>
+        <header>
+          <h3>Ventas por categoría (30 días)</h3>
+        </header>
+        <canvas id="categoryChart" height="200"></canvas>
+      </article>
+      
+    </div>
+  </section>
 
 
 
-  <!-- GRÁFICO -->
+
+
+  <!-- MÉTRICAS DEL NEGOCIO -->
   <section>
-    <h2>Gráfico de productos más vendidos</h2>
-
-    <canvas id="topChart" height="120"></canvas>
+    <h2>Métricas del Negocio</h2>
+    
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+      
+      <!-- COMPRAS MES ACTUAL -->
+      <article style="padding: 1rem; border-left: 4px solid var(--primary);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Compras Mes Actual</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ purchases_this_month|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if purchases_last_month > 0 %}
+            {% if purchases_growth > 0 %}
+              <span style="color: var(--error)">↗ {{ purchases_growth|floatformat:1 }}%</span> vs mes anterior
+            {% elif purchases_growth < 0 %}
+              <span style="color: var(--success)">↘ {{ purchases_growth|floatformat:1 }}%</span> vs mes anterior
+            {% else %}
+              <span>→ Igual que mes anterior</span>
+            {% endif %}
+          {% else %}
+            <span>Sin datos mes anterior</span>
+          {% endif %}
+        </footer>
+      </article>
+      
+      <!-- COMPRAS ÚLTIMOS 30 DÍAS -->
+      <article style="padding: 1rem; border-left: 4px solid var(--secondary);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Compras Últimos 30 días</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ purchases_last_30_days|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          <span>Inversión en inventario</span>
+        </footer>
+      </article>
+      
+      <!-- GASTOS MES ACTUAL -->
+      <article style="padding: 1rem; border-left: 4px solid var(--contrast);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Gastos Mes Actual</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ expenses_this_month|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if expenses_last_month > 0 %}
+            {% if expenses_growth > 0 %}
+              <span style="color: var(--error)">↗ {{ expenses_growth|floatformat:1 }}%</span> vs mes anterior
+            {% elif expenses_growth < 0 %}
+              <span style="color: var(--success)">↘ {{ expenses_growth|floatformat:1 }}%</span> vs mes anterior
+            {% else %}
+              <span>→ Igual que mes anterior</span>
+            {% endif %}
+          {% else %}
+            <span>Sin datos mes anterior</span>
+          {% endif %}
+        </footer>
+      </article>
+      
+      <!-- GASTOS ÚLTIMOS 30 DÍAS -->
+      <article style="padding: 1rem; border-left: 4px solid var(--highlight);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Gastos Últimos 30 días</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ expenses_last_30_days|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          <span>Gastos operativos</span>
+        </footer>
+      </article>
+      
+    </div>
   </section>
 
 </main>
 
-
-
-<!-- Chart.js -->
+<!-- CHART.JS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-const ctx = document.getElementById('topChart');
-
-new Chart(ctx, {
-    type: 'bar',
+// Gráfico de ventas últimos 7 días
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+const salesChart = new Chart(salesCtx, {
+    type: 'line',
     data: {
-        labels: [{% for i in top_products %}"{{ i.product__name }}",{% endfor %}],
+         labels: {{ daily_sales_labels_json|safe }},
         datasets: [{
-            label: 'Ventas',
-            data: [{% for i in top_products %}{{ i.total_sold }},{% endfor %}],
+            label: 'Ingresos (C$)',
+             data: {{ daily_sales_values_json|safe }},
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.3,
+            fill: true
         }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'C$ ' + value.toLocaleString('es-NI');
+                    }
+                }
+            }
+        }
     }
- });
- </script>
+});
 
- <script>
-   document.addEventListener('DOMContentLoaded', function() {
-     // Para cada tabla con clase gridjs-table
-     document.querySelectorAll('table.gridjs-table').forEach(function(table) {
-       const tableId = table.id;
-       const containerId = tableId.replace('-table', '-grid');
-       const container = document.getElementById(containerId);
-       if (!container) return;
-       
-       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-       const rows = table.querySelectorAll('tbody tr');
-       const data = Array.from(rows).map(row => {
-         const cells = row.querySelectorAll('td');
-         return Array.from(cells).map(cell => cell.innerHTML.trim());
-       });
-       
-       if (data.length === 0) {
-         container.innerHTML = '<p>No hay datos.</p>';
-         return;
-       }
-       
-       const columns = headers.map(header => ({ name: header }));
-       
-       new gridjs.Grid({
-         columns: columns,
-         data: data,
-         search: true,
-         pagination: data.length > 5 ? { limit: 5, summary: true } : false,
-         sort: true,
-         language: {
-           search: {
-             placeholder: 'Buscar...'
-           },
-           pagination: {
-             previous: 'Anterior',
-             next: 'Siguiente',
-             showing: 'Mostrando',
-             results: () => 'registros'
-           }
-         }
-       }).render(container);
-     });
-   });
- </script>
+// Gráfico de categorías
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryChart = new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+         labels: {{ category_labels_json|safe }},
+        datasets: [{
+             data: {{ category_values_json|safe }},
+            backgroundColor: [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#9966FF', '#FF9F40', '#8AC926', '#1982C4'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'right',
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        label += 'C$ ' + context.parsed.toLocaleString('es-NI');
+                        return label;
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
 
- {% endblock %}
+{% endblock %}
