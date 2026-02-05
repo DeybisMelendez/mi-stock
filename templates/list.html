@@ -14,7 +14,7 @@
         {% for field in fields %}
           <th>{{ field }}</th>
         {% endfor %}
-        <th>Opciones</th>
+        <th>Acciones</th>
       </tr>
     </thead>
 
@@ -43,9 +43,26 @@
       const table = document.getElementById('data-table');
       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
       const rows = table.querySelectorAll('tbody tr');
+      
+      // Procesar datos, manejando la columna de acciones de forma especial
       const data = Array.from(rows).map(row => {
         const cells = row.querySelectorAll('td');
-        return Array.from(cells).map(cell => cell.innerHTML.trim());
+        return Array.from(cells).map((cell, cellIndex) => {
+          // Si es la última columna (Acciones), extraer el enlace y crear elemento funcional
+          if (cellIndex === cells.length - 1) {
+            const link = cell.querySelector('a');
+            if (link) {
+              const newLink = document.createElement('a');
+              newLink.href = link.href;
+              newLink.innerHTML = '<i class="material-icons">edit</i>';
+              newLink.title = 'Editar';
+              return newLink;
+            }
+            return '';
+          }
+          // Para otras columnas, usar el texto contenido
+          return cell.textContent.trim();
+        });
       });
       
       // Si no hay datos, mostrar mensaje
@@ -56,9 +73,13 @@
       
       // Configurar columnas con sorting personalizado
       const columns = headers.map((header, index) => {
-        // Última columna (Opciones) no es ordenable
+        // Última columna (Acciones) no es ordenable
         if (index === headers.length - 1) {
-          return { name: header, sort: false };
+          return { 
+            name: header, 
+            sort: false,
+            formatter: (cell) => cell
+          };
         }
         return {
           name: header,
@@ -104,11 +125,11 @@
     });
   </script>
   <style>
-    .gridjs-th-content:hover {
-    cursor: pointer;
-    }
     .gridjs-sort {
-    display: none;
+      display: none;
+    }
+    .gridjs-th-content {
+      cursor: pointer;
     }
   </style>
 </main>
