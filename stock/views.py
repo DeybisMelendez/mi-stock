@@ -14,13 +14,20 @@ from django.utils.timezone import now
 from datetime import timedelta, date
 import json
 from django.core.paginator import Paginator
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404
 from django.core import serializers
 
 
 @login_required
 def generic_list_view(request, model_str):
-    model = apps.get_model("stock", model_str.capitalize())
+    valid_models = {"category", "product", "sale", "purchase", "expense"}
+    if model_str not in valid_models:
+        raise Http404
+    
+    try:
+        model = apps.get_model("stock", model_str.capitalize())
+    except LookupError:
+        raise Http404
     queryset = model.objects.all()
 
     fields = []
@@ -68,7 +75,14 @@ def generic_list_view(request, model_str):
 
 @login_required
 def generic_form_view(request, model_str, pk=None):
-    model = apps.get_model("stock", model_str.capitalize())
+    valid_models = {"category", "product", "sale", "purchase", "expense"}
+    if model_str not in valid_models:
+        raise Http404
+    
+    try:
+        model = apps.get_model("stock", model_str.capitalize())
+    except LookupError:
+        raise Http404
     obj = get_object_or_404(model, pk=pk) if pk else None
     title = "Editar " if obj else "Agregar nueva "
     form_class = None

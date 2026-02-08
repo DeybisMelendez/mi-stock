@@ -1,11 +1,13 @@
-from django.urls import path
+from django.urls import path, re_path
+from django.http import HttpResponseNotFound
 from . import views
 
 urlpatterns = [
     path("", views.home, name="home"),
-    path("<str:model_str>", views.generic_list_view, name="list"),
-    path("<str:model_str>/new", views.generic_form_view, name="new"),
-    path("<str:model_str>/<int:pk>/edit", views.generic_form_view, name="edit"),
+    path("favicon.ico", lambda request: HttpResponseNotFound()),
+    re_path(r"^(?P<model_str>category|product|sale|purchase|expense)$", views.generic_list_view, name="list"),
+    re_path(r"^(?P<model_str>category|product|sale|purchase|expense)/new$", views.generic_form_view, name="new"),
+    re_path(r"^(?P<model_str>category|product|sale|purchase|expense)/(?P<pk>\d+)/edit$", views.generic_form_view, name="edit"),
     path("resultados/<int:month_offset>/",
          views.month_result, name="month_result"),
     path("resultados/", views.month_result, {"month_offset": 0}),
