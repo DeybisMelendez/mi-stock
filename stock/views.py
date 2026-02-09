@@ -540,3 +540,88 @@ def import_data(request):
     
     # Si no es POST, mostrar formulario
     return render(request, "import_form.html")
+
+
+@login_required
+def top_products_view(request, period='mes'):
+    """
+    Vista para mostrar productos más vendidos.
+    Periodos: hoy, semana, mes, total
+    """
+    today = now()
+    today_start = today.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    last30 = today - timedelta(days=30)
+    
+    # Definir filtro según período
+    if period == 'hoy':
+        date_filter = {'date__gte': today_start}
+        title = "Productos Más Vendidos - Hoy"
+    elif period == 'semana':
+        date_filter = {'date__gte': week_start}
+        title = "Productos Más Vendidos - Última Semana"
+    elif period == 'mes':
+        date_filter = {'date__gte': last30}
+        title = "Productos Más Vendidos - Último Mes"
+    elif period == 'total':
+        date_filter = {}
+        title = "Productos Más Vendidos - Total Histórico"
+    else:
+        raise Http404("Período no válido")
+    
+    # Obtener productos más vendidos
+    top_products = (
+        Sale.objects.filter(**date_filter)
+        .values('product__name', 'product__category__name')
+        .annotate(
+            total_sold=Sum('quantity'),
+            total_revenue=Sum(F('quantity') * F('price'))
+        )
+        .order_by('-total_sold')
+    )
+    
+    # Calcular total general para porcentajes
+    total_sold_all = top_products.aggregate(Sum('total_sold'))['total_sold__sum'] or 0
+    
+    # Crear lista de objetos con atributos para el template
+    class TopProduct:
+        def __init__(self, pk, product_name, category_name, total_sold, total_revenue, percentage):
+            self.id = pk
+            self.product_name = product_name
+            self.category_name = category_name or "Sin categoría"
+            self.total_sold = total_sold
+            self.total_revenue = total_revenue
+            self.percentage = percentage
+            self.percentage_display = f"{percentage:.2f}%"
+    
+    products_list = []
+    for idx, item in enumerate(top_products, start=1):
+        if total_sold_all > 0:
+            percentage = (item['total_sold'] / total_sold_all) * 100
+        else:
+            percentage = 0
+        
+        product = TopProduct(
+            pk=idx,
+            product_name=item['product__name'],
+            category_name=item['product__category__name'],
+            total_sold=item['total_sold'],
+            total_revenue=item['total_revenue'],
+            percentage=percentage
+        )
+        products_list.append(product)
+    
+    # Configurar columnas para list.html
+    fields = ["Producto", "Categoría", "Cantidad Vendida", "Ingresos Totales", "% del Total"]
+    columns = ["product_name", "category_name", "total_sold", "total_revenue", "percentage_display"]
+    
+    context = {
+        'title': title,
+        'model': 'product',  # Modelo para URLs, pero show_actions=False oculta acciones
+        'fields': fields,
+        'columns': columns,
+        'page_obj': products_list,
+        'show_actions': False,
+    }
+    
+    return render(request, 'list.html', context)

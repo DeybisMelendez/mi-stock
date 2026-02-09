@@ -4,35 +4,38 @@
 <main class="container" x-data="{ search: '' }">
 
   <h1>{{ title }}</h1>
+  {% if model and show_actions|default:True %}
   <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
+  {% endif %}
   <hr>
 
   <div id="gridjs-table" style="width: 100%;"></div>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const showActions = {% if show_actions|default:True %}true{% else %}false{% endif %};
         const headers = [
         {% for field in fields %}
           '{{ field|escapejs }}'{% if not forloop.last %},{% endif %}
         {% endfor %}
-        ,'Acciones'
+        {% if show_actions|default:True %},'Acciones'{% endif %}
       ];
        const rawData = [
         {% for item in page_obj %}
-          {% url "edit" model item.id as edit_url %}
+          {% if show_actions|default:True %}{% url "edit" model item.id as edit_url %}{% endif %}
           [
             {% for col in columns %}
               '{{ item|format_value:col|escapejs }}'{% if not forloop.last %},{% endif %}
             {% endfor %}
-            ,'{{ edit_url|escapejs }}'
+            {% if show_actions|default:True %},'{{ edit_url|escapejs }}'{% endif %}
           ]{% if not forloop.last %},{% endif %}
         {% endfor %}
       ];
-      // Transformar rawData en data, convirtiendo la última columna (URL) en elemento DOM
+      // Transformar rawData en data, convirtiendo la última columna (URL) en elemento DOM si hay acciones
       const data = rawData.map(row => {
         return row.map((cell, cellIndex) => {
-          // Si es la última columna (Acciones), crear enlace
-          if (cellIndex === row.length - 1) {
+          // Si hay acciones y es la última columna, crear enlace
+          if (showActions && cellIndex === row.length - 1) {
             const newLink = document.createElement('a');
             newLink.href = cell;
             newLink.innerHTML = '<i class="material-icons">edit</i>';
@@ -52,8 +55,8 @@
       
       // Configurar columnas con sorting personalizado
       const columns = headers.map((header, index) => {
-        // Última columna (Acciones) no es ordenable
-        if (index === headers.length - 1) {
+        // Si hay acciones y es la última columna, no es ordenable
+        if (showActions && index === headers.length - 1) {
           return { 
             name: header, 
             sort: false,

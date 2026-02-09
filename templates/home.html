@@ -129,9 +129,89 @@
     </div>
   </section>
 
-
-
-
+  <!-- PRODUCTOS MÁS VENDIDOS -->
+  <section style="margin-bottom: 3rem;">
+    <h2>Productos Más Vendidos</h2>
+    
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+      
+      <!-- RESUMEN DEL MES -->
+      <article>
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3>Top 5 del Mes</h3>
+          <a href="{% url 'top_products' %}" role="button" style="font-size: 0.9rem;">Ver todos</a>
+        </header>
+        
+        {% if top_products_month %}
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--muted-border-color);">
+              <th style="text-align: left; padding: 0.5rem;">Producto</th>
+              <th style="text-align: right; padding: 0.5rem;">Cantidad</th>
+              <th style="text-align: right; padding: 0.5rem;">Ingresos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in top_products_month|slice:":5" %}
+            <tr style="border-bottom: 1px solid var(--muted-border-color);">
+              <td style="padding: 0.5rem;">{{ product.product__name }}</td>
+              <td style="text-align: right; padding: 0.5rem;">{{ product.total_sold }}</td>
+              <td style="text-align: right; padding: 0.5rem;">C$ {{ product.total_revenue|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>No hay ventas en el último mes.</p>
+        {% endif %}
+        
+        <footer style="margin-top: 1rem; font-size: 0.9rem; color: var(--muted-color);">
+          <p>Períodos: 
+            <a href="{% url 'top_products_period' 'hoy' %}">Hoy</a> | 
+            <a href="{% url 'top_products_period' 'semana' %}">Semana</a> | 
+            <a href="{% url 'top_products_period' 'mes' %}">Mes</a> | 
+            <a href="{% url 'top_products_period' 'total' %}">Total</a>
+          </p>
+        </footer>
+      </article>
+      
+      <!-- RESUMEN DE LA SEMANA -->
+      <article>
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3>Top 5 de la Semana</h3>
+          <a href="{% url 'top_products_period' 'semana' %}" role="button" style="font-size: 0.9rem;">Ver todos</a>
+        </header>
+        
+        {% if top_products_week %}
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--muted-border-color);">
+              <th style="text-align: left; padding: 0.5rem;">Producto</th>
+              <th style="text-align: right; padding: 0.5rem;">Cantidad</th>
+              <th style="text-align: right; padding: 0.5rem;">Ingresos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in top_products_week|slice:":5" %}
+            <tr style="border-bottom: 1px solid var(--muted-border-color);">
+              <td style="padding: 0.5rem;">{{ product.product__name }}</td>
+              <td style="text-align: right; padding: 0.5rem;">{{ product.total_sold }}</td>
+              <td style="text-align: right; padding: 0.5rem;">C$ {{ product.total_revenue|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>No hay ventas en la última semana.</p>
+        {% endif %}
+        
+        <footer style="margin-top: 1rem; font-size: 0.9rem; color: var(--muted-color);">
+          <p>Resumen de los últimos 7 días</p>
+        </footer>
+      </article>
+      
+    </div>
+  </section>
 
   <!-- MÉTRICAS DEL NEGOCIO -->
   <section>

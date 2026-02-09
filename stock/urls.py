@@ -5,6 +5,8 @@ from . import views
 urlpatterns = [
     path("", views.home, name="home"),
     path("favicon.ico", lambda request: HttpResponseNotFound()),
+    path("top-productos/<str:period>/", views.top_products_view, name="top_products_period"),
+    path("top-productos/", views.top_products_view, {"period": "mes"}, name="top_products"),
     re_path(r"^(?P<model_str>category|product|sale|purchase|expense)$", views.generic_list_view, name="list"),
     re_path(r"^(?P<model_str>category|product|sale|purchase|expense)/new$", views.generic_form_view, name="new"),
     re_path(r"^(?P<model_str>category|product|sale|purchase|expense)/(?P<pk>\d+)/edit$", views.generic_form_view, name="edit"),
