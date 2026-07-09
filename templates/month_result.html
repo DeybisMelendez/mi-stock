@@ -36,6 +36,11 @@
           <td>{{ gross_margin_pct|floatformat:2 }}%</td>
         </tr>
         <tr>
+          <td>Otros ingresos</td>
+          <td>{{ other_income|floatformat:2|intcomma }}</td>
+          <td>{{ other_income_pct|floatformat:2 }}%</td>
+        </tr>
+        <tr>
           <td>Gastos operativos</td>
           <td>({{ expenses|floatformat:2|intcomma }})</td>
           <td>{{ expenses_pct|floatformat:2 }}%</td>
@@ -74,6 +79,56 @@
     </table>
     {% else %}
     <p>No hay ventas en este período.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Otros ingresos del mes</h2>
+
+    {% if other_income_by_category %}
+    <h4>Por categoría</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Monto (C$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in other_income_by_category %}
+        <tr>
+          <td>{{ row.category__name|default:"Sin categoría" }}</td>
+          <td>{{ row.total|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <h4>Detalle</h4>
+    {% if other_income_list %}
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Categoría</th>
+          <th>Descripción</th>
+          <th>Monto (C$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in other_income_list %}
+        <tr>
+          <td>{{ o.date|date:"d/m/Y" }}</td>
+          <td>{{ o.category|default:"-" }}</td>
+          <td>{{ o.description|default:"-" }}</td>
+          <td>{{ o.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay otros ingresos en este período.</p>
     {% endif %}
   </section>
 

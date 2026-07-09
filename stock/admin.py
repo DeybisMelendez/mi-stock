@@ -2,10 +2,12 @@ from django.contrib import admin
 from .models import (
     Category, ExpenseCategory, Product, ProductImage, Purchase, Sale,
     Expense, PurchaseInvoice, SaleInvoice,
+    OtherIncomeCategory, OtherIncome,
 )
 
 admin.site.register(Category)
 admin.site.register(ExpenseCategory)
+admin.site.register(OtherIncomeCategory)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -70,6 +72,14 @@ class SaleAdmin(admin.ModelAdmin):
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ("date", "category", "amount", "description", "created_at")
+    list_filter = ("date", "category")
+    search_fields = ("description",)
+    ordering = ("-date",)
+
+
+@admin.register(OtherIncome)
+class OtherIncomeAdmin(admin.ModelAdmin):
     list_display = ("date", "category", "amount", "description", "created_at")
     list_filter = ("date", "category")
     search_fields = ("description",)

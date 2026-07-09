@@ -30,20 +30,38 @@
       ];
        const rawData = [
         {% for item in page_obj %}
-          {% if show_actions|default:True %}{% if model == 'purchase' %}{% url "purchase_invoice_edit" item.id as edit_url %}{% elif model == 'sale' %}{% url "sale_invoice_edit" item.id as edit_url %}{% elif model == 'product' %}{% url "product_edit" item.id as edit_url %}{% else %}{% url "edit" model item.id as edit_url %}{% endif %}{% endif %}
+          {% if show_actions|default:True %}{% if model == 'purchase' %}{% url "purchase_invoice_edit" item.id as edit_url %}{% url "purchase_invoice_detail" item.id as detail_url %}{% elif model == 'sale' %}{% url "sale_invoice_edit" item.id as edit_url %}{% url "sale_invoice_detail" item.id as detail_url %}{% elif model == 'product' %}{% url "product_edit" item.id as edit_url %}{% else %}{% url "edit" model item.id as edit_url %}{% endif %}{% endif %}
           [
             {% for col in columns %}
               '{{ item|format_value:col|escapejs }}'{% if not forloop.last %},{% endif %}
             {% endfor %}
-            {% if show_actions|default:True %},'{{ edit_url|escapejs }}'{% endif %}
+            {% if show_actions|default:True %},{% if detail_url %}'{{ detail_url|escapejs }}|{{ edit_url|escapejs }}'{% else %}'{{ edit_url|escapejs }}'{% endif %}{% endif %}
           ]{% if not forloop.last %},{% endif %}
         {% endfor %}
       ];
       // Transformar rawData en data, convirtiendo la última columna (URL) en elemento DOM si hay acciones
       const data = rawData.map(row => {
         return row.map((cell, cellIndex) => {
-          // Si hay acciones y es la última columna, crear enlace
+          // Si hay acciones y es la última columna, crear enlace(s)
           if (showActions && cellIndex === row.length - 1) {
+            // Si el cell contiene un '|', son detail_url|edit_url
+            const parts = cell.split('|');
+            const container = document.createElement('span');
+            container.style.display = 'inline-flex';
+            container.style.gap = '0.5rem';
+            if (parts.length === 2) {
+              const detailLink = document.createElement('a');
+              detailLink.href = parts[0];
+              detailLink.innerHTML = '<i class="material-icons">visibility</i>';
+              detailLink.title = 'Ver';
+              container.appendChild(detailLink);
+              const editLink = document.createElement('a');
+              editLink.href = parts[1];
+              editLink.innerHTML = '<i class="material-icons">edit</i>';
+              editLink.title = 'Editar';
+              container.appendChild(editLink);
+              return container;
+            }
             const newLink = document.createElement('a');
             newLink.href = cell;
             newLink.innerHTML = '<i class="material-icons">edit</i>';

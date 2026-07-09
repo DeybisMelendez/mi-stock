@@ -3,6 +3,7 @@ from .models import (
     Category, ExpenseCategory, Product, ProductImage,
     Purchase, Sale, Expense,
     PurchaseInvoice, SaleInvoice,
+    OtherIncomeCategory, OtherIncome,
 )
 
 
@@ -38,7 +39,22 @@ class ExpenseForm(forms.ModelForm):
         model = Expense
         fields = ["date", "category", "amount", "description"]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+
+class OtherIncomeCategoryForm(forms.ModelForm):
+    class Meta:
+        model = OtherIncomeCategory
+        fields = ["name"]
+
+
+class OtherIncomeForm(forms.ModelForm):
+    class Meta:
+        model = OtherIncome
+        fields = ["date", "category", "amount", "description"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
 
@@ -48,7 +64,7 @@ class PurchaseInvoiceForm(forms.ModelForm):
         model = PurchaseInvoice
         fields = ["date", "supplier"]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
 
@@ -64,7 +80,7 @@ class SaleInvoiceForm(forms.ModelForm):
         model = SaleInvoice
         fields = ["date", "customer"]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
 
 

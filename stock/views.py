@@ -7,12 +7,14 @@ from .models import (
     Category, ExpenseCategory, Product, ProductImage,
     Purchase, Sale, Expense,
     PurchaseInvoice, SaleInvoice,
+    OtherIncomeCategory, OtherIncome,
 )
 from .forms import (
     CategoryForm, ExpenseCategoryForm, ProductForm, ExpenseForm,
     PurchaseInvoiceForm, PurchaseItemForm,
     SaleInvoiceForm, SaleItemForm,
     ProductImageFormSet,
+    OtherIncomeCategoryForm, OtherIncomeForm,
 )
 from django.apps import apps
 from django.db.models import Sum, F
@@ -28,13 +30,15 @@ MODEL_NAME_MAP = {
     "purchase": "PurchaseInvoice",
     "sale": "SaleInvoice",
     "expensecategory": "ExpenseCategory",
+    "otherincome": "OtherIncome",
+    "otherincomecategory": "OtherIncomeCategory",
 }
 
 
 @login_required
 def generic_list_view(request, model_str):
     valid_models = {"category", "product", "sale", "purchase", "expense",
-                    "expensecategory"}
+                    "expensecategory", "otherincome", "otherincomecategory"}
     if model_str not in valid_models:
         raise Http404
 
@@ -93,6 +97,11 @@ def generic_list_view(request, model_str):
             columns = ["name"]
             title = "Categorías de Gastos"
 
+        case "otherincomecategory":
+            fields = ["Nombre"]
+            columns = ["name"]
+            title = "Categorías de Otros Ingresos"
+
         case "product":
             fields = ["Nombre", "Categoría", "Marca",
                       "Stock", "Precio", "Costo Promedio"]
@@ -106,6 +115,12 @@ def generic_list_view(request, model_str):
             columns = ["date", "category__name", "description", "amount"]
             title = "Gastos"
 
+        case "otherincome":
+            queryset = queryset.select_related("category")
+            fields = ["Fecha", "Categoría", "Descripción", "Monto"]
+            columns = ["date", "category__name", "description", "amount"]
+            title = "Otros Ingresos"
+
     context = {
         "model": model_str,
         "title": title,
@@ -118,7 +133,8 @@ def generic_list_view(request, model_str):
 
 @login_required
 def generic_form_view(request, model_str, pk=None):
-    valid_models = {"category", "expense", "expensecategory"}
+    valid_models = {"category", "expense", "expensecategory",
+                    "otherincome", "otherincomecategory"}
     if model_str not in valid_models:
         raise Http404
 
@@ -138,9 +154,15 @@ def generic_form_view(request, model_str, pk=None):
         case "expensecategory":
             form_class = ExpenseCategoryForm
             title += "Categoría de Gasto"
+        case "otherincomecategory":
+            form_class = OtherIncomeCategoryForm
+            title += "Categoría de Otro Ingreso"
         case "expense":
             form_class = ExpenseForm
             title += "Gasto"
+        case "otherincome":
+            form_class = OtherIncomeForm
+            title += "Otro Ingreso"
 
     if request.method == "POST":
         form = form_class(request.POST, instance=obj)
@@ -252,6 +274,38 @@ def sale_invoice_form_view(request, pk=None):
 
 
 @login_required
+def purchase_invoice_detail_view(request, pk):
+    """Vista de detalle de una factura de compra."""
+    invoice = get_object_or_404(PurchaseInvoice, pk=pk)
+    context = {
+        "title": f"Factura de Compra #{invoice.id}",
+        "invoice": invoice,
+        "party_label": "Proveedor",
+        "party": invoice.supplier,
+        "kind": "purchase",
+        "edit_url": reverse("purchase_invoice_edit", args=[invoice.id]),
+        "list_url": reverse("list", args=["purchase"]),
+    }
+    return render(request, "invoice_detail.html", context)
+
+
+@login_required
+def sale_invoice_detail_view(request, pk):
+    """Vista de detalle de una factura de venta."""
+    invoice = get_object_or_404(SaleInvoice, pk=pk)
+    context = {
+        "title": f"Factura de Venta #{invoice.id}",
+        "invoice": invoice,
+        "party_label": "Cliente",
+        "party": invoice.customer,
+        "kind": "sale",
+        "edit_url": reverse("sale_invoice_edit", args=[invoice.id]),
+        "list_url": reverse("list", args=["sale"]),
+    }
+    return render(request, "invoice_detail.html", context)
+
+
+@login_required
 def home(request):
     today = now()
     today_date = today.date()
@@ -330,6 +384,27 @@ def home(request):
 
     purchases_growth = growth_percentage(purchases_this_month, purchases_last_month)
     expenses_growth = growth_percentage(expenses_this_month, expenses_last_month)
+
+    # ===== OTROS INGRESOS (no provenientes de ventas) =====
+    other_income_this_month = OtherIncome.objects.filter(
+        date__gte=month_start
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    other_income_last_month = OtherIncome.objects.filter(
+        date__gte=prev_month_start, date__lte=prev_month_end
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    other_income_last_30_days = OtherIncome.objects.filter(
+        date__gte=last30_date
+    ).aggregate(total=Sum("amount"))["total"] or 0
+
+    other_income_total = OtherIncome.objects.aggregate(
+        total=Sum("amount")
+    )["total"] or 0
+
+    other_income_growth = growth_percentage(
+        other_income_this_month, other_income_last_month
+    )
 
     # ===== VENTAS (CANTIDAD) POR PERÍODO =====
     sales_count_today = Sale.objects.filter(invoice__date__gte=today_date).count()
@@ -468,6 +543,11 @@ def home(request):
         "expenses_this_month": expenses_this_month,
         "expenses_last_month": expenses_last_month,
         "expenses_growth": expenses_growth,
+        "other_income_this_month": other_income_this_month,
+        "other_income_last_month": other_income_last_month,
+        "other_income_last_30_days": other_income_last_30_days,
+        "other_income_total": other_income_total,
+        "other_income_growth": other_income_growth,
         "purchases_this_month": purchases_this_month,
         "purchases_last_month": purchases_last_month,
         "purchases_last_30_days": purchases_last_30_days,
@@ -538,8 +618,13 @@ def month_result(request, month_offset=0):
         .aggregate(total=Sum("amount"))
     )["total"] or 0
 
+    other_income = (
+        OtherIncome.objects.filter(**expense_filter)
+        .aggregate(total=Sum("amount"))
+    )["total"] or 0
+
     gross_profit = income - costs
-    net_profit = income - costs - expenses
+    net_profit = income + other_income - costs - expenses
 
     # Desglose por categoría de producto
     income_by_category = list(
@@ -566,6 +651,18 @@ def month_result(request, month_offset=0):
         .order_by("-total")
     )
 
+    # Otros ingresos del mes: lista detallada y agrupada por categoría
+    other_income_list = list(
+        OtherIncome.objects.filter(**expense_filter).order_by("-date", "-id")
+    )
+
+    other_income_by_category = (
+        OtherIncome.objects.filter(**expense_filter)
+        .values("category__name")
+        .annotate(total=Sum("amount"))
+        .order_by("-total")
+    )
+
     # Márgenes como porcentaje sobre los ingresos
     def pct(part, whole):
         if whole == 0:
@@ -576,6 +673,7 @@ def month_result(request, month_offset=0):
     net_margin_pct = pct(net_profit, income)
     costs_pct = pct(costs, income)
     expenses_pct = pct(expenses, income)
+    other_income_pct = pct(other_income, income)
 
     return render(request, "month_result.html", {
         "start": start,
@@ -585,6 +683,7 @@ def month_result(request, month_offset=0):
         "income": income,
         "costs": costs,
         "expenses": expenses,
+        "other_income": other_income,
 
         "gross_profit": gross_profit,
         "net_profit": net_profit,
@@ -592,11 +691,14 @@ def month_result(request, month_offset=0):
         "income_by_category": income_by_category,
         "expenses_list": expenses_list,
         "expenses_by_category": expenses_by_category,
+        "other_income_list": other_income_list,
+        "other_income_by_category": other_income_by_category,
 
         "costs_pct": costs_pct,
         "gross_margin_pct": gross_margin_pct,
         "net_margin_pct": net_margin_pct,
         "expenses_pct": expenses_pct,
+        "other_income_pct": other_income_pct,
     })
 
 
@@ -614,6 +716,7 @@ def export_data(request):
     models_to_export = [
         "Category", "ExpenseCategory", "Product", "ProductImage",
         "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
+        "OtherIncomeCategory", "OtherIncome",
     ]
     data = {
         "metadata": {
@@ -653,6 +756,7 @@ def import_data(request):
         models_order = [
             "Category", "ExpenseCategory", "Product", "ProductImage",
             "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
+            "OtherIncomeCategory", "OtherIncome",
         ]
         imported_counts = {}
 

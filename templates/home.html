@@ -290,7 +290,43 @@
           <span>Gastos operativos</span>
         </footer>
       </article>
-      
+
+      <!-- OTROS INGRESOS MES ACTUAL -->
+      <article style="padding: 1rem; border-left: 4px solid var(--success);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Otros Ingresos Mes Actual</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ other_income_this_month|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if other_income_last_month > 0 %}
+            {% if other_income_growth > 0 %}
+              <span style="color: var(--success)">↗ {{ other_income_growth|floatformat:1 }}%</span> vs mes anterior
+            {% elif other_income_growth < 0 %}
+              <span style="color: var(--error)">↘ {{ other_income_growth|floatformat:1 }}%</span> vs mes anterior
+            {% else %}
+              <span>→ Igual que mes anterior</span>
+            {% endif %}
+          {% else %}
+            <span>Sin datos mes anterior</span>
+          {% endif %}
+        </footer>
+      </article>
+
+      <!-- OTROS INGRESOS ÚLTIMOS 30 DÍAS -->
+      <article style="padding: 1rem; border-left: 4px solid var(--success);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Otros Ingresos Últimos 30 días</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ other_income_last_30_days|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          <span>Ingresos no provenientes de ventas</span>
+        </footer>
+      </article>
+
     </div>
   </section>
 

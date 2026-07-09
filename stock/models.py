@@ -234,3 +234,35 @@ class Expense(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class OtherIncomeCategory(models.Model):
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class OtherIncome(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    date = models.DateField(default=timezone.now)
+    category = models.ForeignKey(
+        OtherIncomeCategory, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    description = models.TextField(blank=True, null=True)
+
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    def __str__(self):
+        return f"C$ {self.amount} - {self.description}"
+
+    class Meta:
+        ordering = ['-date', '-created_at']
