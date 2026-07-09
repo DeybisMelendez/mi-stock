@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% load humanize %}
 {% block title %}Estado de resultados{% endblock %}
 
 {% block content %}
@@ -8,26 +9,130 @@
 
   <h3>{{ start|date:"F Y" }}</h3>
 
-<section>
-  <ul>
-    <li><strong>Ingresos:</strong> C$ {{ income }}</li>
-    <li><strong>Costos:</strong> C$ {{ costs }}</li>
-    <li><strong>Utilidad bruta:</strong> C$ {{ gross_profit }}</li>
-    <li><strong>Gastos:</strong> C$ {{ expenses }}</li>
-    <li><strong>Utilidad neta:</strong> <mark>C$ {{ net_profit }}</mark></li>
-  </ul>
-</section>
+  <section>
+    <h2>Resumen</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Concepto</th>
+          <th>Monto (C$)</th>
+          <th>% sobre ingresos</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Ingresos</strong></td>
+          <td>{{ income|floatformat:2|intcomma }}</td>
+          <td>100.00%</td>
+        </tr>
+        <tr>
+          <td>Costos de venta</td>
+          <td>({{ costs|floatformat:2|intcomma }})</td>
+          <td>{{ costs_pct|floatformat:2 }}%</td>
+        </tr>
+        <tr>
+          <td><strong>Utilidad bruta</strong></td>
+          <td>{{ gross_profit|floatformat:2|intcomma }}</td>
+          <td>{{ gross_margin_pct|floatformat:2 }}%</td>
+        </tr>
+        <tr>
+          <td>Gastos operativos</td>
+          <td>({{ expenses|floatformat:2|intcomma }})</td>
+          <td>{{ expenses_pct|floatformat:2 }}%</td>
+        </tr>
+        <tr>
+          <td><strong>Utilidad neta</strong></td>
+          <td><mark>{{ net_profit|floatformat:2|intcomma }}</mark></td>
+          <td>{{ net_margin_pct|floatformat:2 }}%</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 
+  <section>
+    <h2>Ingresos y costos por categoría</h2>
+    {% if income_by_category %}
+    <table>
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Ingresos (C$)</th>
+          <th>Costos (C$)</th>
+          <th>Utilidad bruta (C$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in income_by_category %}
+        <tr>
+          <td>{{ row.product__category__name|default:"Sin categoría" }}</td>
+          <td>{{ row.income|floatformat:2|intcomma }}</td>
+          <td>{{ row.cost|floatformat:2|intcomma }}</td>
+          <td>{{ row.gross|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay ventas en este período.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Gastos del mes</h2>
+
+    {% if expenses_by_category %}
+    <h4>Por categoría</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Monto (C$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in expenses_by_category %}
+        <tr>
+          <td>{{ row.category__name|default:"Sin categoría" }}</td>
+          <td>{{ row.total|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <h4>Detalle</h4>
+    {% if expenses_list %}
+    <table>
+      <thead>
+        <tr>
+          <th> Fecha</th>
+          <th>Categoría</th>
+          <th>Descripción</th>
+          <th>Monto (C$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in expenses_list %}
+        <tr>
+          <td>{{ e.date|date:"d/m/Y" }}</td>
+          <td>{{ e.category|default:"-" }}</td>
+          <td>{{ e.description|default:"-" }}</td>
+          <td>{{ e.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay gastos en este período.</p>
+    {% endif %}
+  </section>
 
   <section>
     <h3>Navegar</h3>
-
     <a href="{% url 'month_result' offset|add:'1' %}" role="button">← Mes anterior</a>
-
     {% if offset > 0 %}
     <a href="{% url 'month_result' offset|add:'-1' %}" role="button">Mes siguiente →</a>
     {% endif %}
-
   </section>
 
   <section>

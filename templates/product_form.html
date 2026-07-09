@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>{{ title }}</h1>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_div }}
+
+    <h2>Fotos</h2>
+    <table id="items-table">
+      <thead>
+        <tr>
+          <th>Imagen</th>
+          <th>Eliminar</th>
+        </tr>
+      </thead>
+      <tbody id="items-body">
+        {{ formset.management_form }}
+        {% for f in formset %}
+        <tr class="item-row">
+          <td>
+            {{ f.image }}
+            {{ f.id.as_hidden }}{{ f.product.as_hidden }}
+            {% if f.instance.image %}
+              <br><img src="{{ f.instance.image.url }}" alt=""
+                        style="max-height: 64px; max-width: 64px; object-fit: cover;">
+            {% endif %}
+          </td>
+          <td>{{ f.DELETE }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" id="add-item" onclick="addItemRow()">+ Agregar foto</button>
+
+    <hr>
+    <button type="submit">Guardar</button>
+  </form>
+
+  <div id="empty-row-template" style="display:none;">
+    <table><tbody>
+      <tr class="item-row">
+        <td>{{ formset.empty_form.image }}{{ formset.empty_form.id.as_hidden }}{{ formset.empty_form.product.as_hidden }}</td>
+        <td>{{ formset.empty_form.DELETE }}</td>
+      </tr>
+    </tbody></table>
+  </div>
+</main>
+
+<script>
+function addItemRow() {
+  const totalForms = document.querySelector('#id_form-TOTAL_FORMS');
+  const formCount = parseInt(totalForms.value, 10);
+  totalForms.value = formCount + 1;
+
+  const sourceRow = document.querySelector('#empty-row-template tr');
+  const clone = sourceRow.cloneNode(true);
+  clone.innerHTML = clone.innerHTML.replace(/__prefix__/g, formCount);
+  document.getElementById('items-body').appendChild(clone);
+}
+</script>
+{% endblock %}
