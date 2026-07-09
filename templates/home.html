@@ -143,6 +143,7 @@
         </header>
         
         {% if top_products_month %}
+        <div class="table-wrap">
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="border-bottom: 2px solid var(--muted-border-color);">
@@ -161,6 +162,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% else %}
         <p>No hay ventas en el último mes.</p>
         {% endif %}
@@ -183,6 +185,7 @@
         </header>
         
         {% if top_products_week %}
+        <div class="table-wrap">
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr style="border-bottom: 2px solid var(--muted-border-color);">
@@ -201,6 +204,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% else %}
         <p>No hay ventas en la última semana.</p>
         {% endif %}

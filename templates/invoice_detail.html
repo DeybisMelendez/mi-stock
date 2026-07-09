@@ -7,6 +7,7 @@
   <p><strong>Fecha:</strong> {{ invoice.date|date:"d/m/Y" }}</p>
 
   <h2>Productos</h2>
+  <div class="table-wrap">
   <table>
     <thead>
       <tr>
@@ -40,6 +41,7 @@
       </tr>
     </tfoot>
   </table>
+  </div>
 
   <hr>
   <a href="{{ list_url }}" role="button"><i class="material-icons">arrow_back</i> Volver</a>

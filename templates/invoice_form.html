@@ -7,6 +7,7 @@
     {{ form.as_div }}
 
     <h2>Productos</h2>
+    <div class="table-wrap">
     <table id="items-table">
       <thead>
         <tr>
@@ -28,6 +29,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     <button type="button" id="add-item" onclick="addItemRow()">+ Agregar línea</button>
 
     <hr>

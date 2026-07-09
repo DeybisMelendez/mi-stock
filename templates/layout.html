@@ -9,6 +9,13 @@
         href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.orange.min.css"
     >
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    {# Tablas responsivas: scroll horizontal en celulares #}
+    <style>
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
 </head>
 <body>
     <nav class="container">
@@ -20,20 +27,33 @@
             <li>
                 <details class="dropdown">
                     <summary><span class="material-icons" style="vertical-align: middle; margin-right: 4px;">menu</span> Menú</summary>
-                    <ul dir="rtl">
-                        <li><a href="{% url 'list' 'category' %}">Categorías</a></li>
-                        <li><a href="{% url 'list' 'expensecategory' %}">Categorías de Gastos</a></li>
-                        <li><a href="{% url 'list' 'product' %}">Productos</a></li>
-                        <li><a href="{% url 'list' 'sale' %}">Ventas</a></li>
-                        <li><a href="{% url 'list' 'purchase' %}">Compras</a></li>
-                        <li><a href="{% url 'list' 'expense' %}">Gastos</a></li>
-                        <li><a href="{% url 'list' 'otherincomecategory' %}">Categorías de Otros Ingresos</a></li>
-                        <li><a href="{% url 'list' 'otherincome' %}">Otros Ingresos</a></li>
-                        <li><a href="{% url 'month_result' '0' %}">Resultados</a></li>
-                        <li><a href="{% url 'user_profile' %}">Perfil</a></li>
+                    <ul>
+                        {# Catálogo #}
+                        <li><small><strong>Catálogo</strong></small></li>
+                        <li><a href="{% url 'list' 'product' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">inventory_2</span>Productos</a></li>
+                        <li><a href="{% url 'list' 'category' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">label</span>Categorías</a></li>
+                        <li><a href="{% url 'list' 'expensecategory' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">paid</span>Categorías de Gastos</a></li>
+                        <li><a href="{% url 'list' 'otherincomecategory' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">label</span>Categorías de Otros Ingresos</a></li>
                         <li><hr></li>
-                        <li><a href="{% url 'export_data' %}">Respaldar datos</a></li>
-                        <li><a href="{% url 'import_data' %}">Restaurar datos</a></li>
+                        {# Operaciones #}
+                        <li><small><strong>Operaciones</strong></small></li>
+                        <li><a href="{% url 'list' 'sale' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">point_of_sale</span>Ventas</a></li>
+                        <li><a href="{% url 'list' 'purchase' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">shopping_cart</span>Compras</a></li>
+                        <li><a href="{% url 'list' 'expense' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">payments</span>Gastos</a></li>
+                        <li><a href="{% url 'list' 'otherincome' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">account_balance_wallet</span>Otros Ingresos</a></li>
+                        <li><hr></li>
+                        {# Reportes #}
+                        <li><small><strong>Reportes</strong></small></li>
+                        <li><a href="{% url 'month_result' '0' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">bar_chart</span>Resultados</a></li>
+                        <li><hr></li>
+                        {# Cuenta #}
+                        <li><small><strong>Cuenta</strong></small></li>
+                        <li><a href="{% url 'user_profile' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">person</span>Perfil</a></li>
+                        <li><hr></li>
+                        {# Datos #}
+                        <li><small><strong>Datos</strong></small></li>
+                        <li><a href="{% url 'export_data' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">cloud_download</span>Respaldar datos</a></li>
+                        <li><a href="{% url 'import_data' %}"><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">cloud_upload</span>Restaurar datos</a></li>
                     </ul>
                 </details>
             </li>

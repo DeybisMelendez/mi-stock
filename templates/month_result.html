@@ -11,6 +11,7 @@
 
   <section>
     <h2>Resumen</h2>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -52,11 +53,13 @@
         </tr>
       </tbody>
     </table>
+    </div>
   </section>
 
   <section>
     <h2>Ingresos y costos por categoría</h2>
     {% if income_by_category %}
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -77,6 +80,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p>No hay ventas en este período.</p>
     {% endif %}
@@ -87,6 +91,7 @@
 
     {% if other_income_by_category %}
     <h4>Por categoría</h4>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -103,10 +108,12 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% endif %}
 
     <h4>Detalle</h4>
     {% if other_income_list %}
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -127,6 +134,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p>No hay otros ingresos en este período.</p>
     {% endif %}
@@ -137,6 +145,7 @@
 
     {% if expenses_by_category %}
     <h4>Por categoría</h4>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -153,10 +162,12 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% endif %}
 
     <h4>Detalle</h4>
     {% if expenses_list %}
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -177,6 +188,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p>No hay gastos en este período.</p>
     {% endif %}
