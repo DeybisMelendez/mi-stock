@@ -16,6 +16,7 @@ urlpatterns = [
             views.generic_form_view, name="edit"),
     # Producto con marca y fotos
     path("product/new/", views.product_form_view, name="product_new"),
+    path("product/<int:pk>/", views.product_detail_view, name="product_detail"),
     path("product/<int:pk>/edit/", views.product_form_view, name="product_edit"),
     path("compras/new/", views.purchase_invoice_form_view, name="purchase_invoice_new"),
     path("compras/<int:pk>/edit/", views.purchase_invoice_form_view, name="purchase_invoice_edit"),

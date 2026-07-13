@@ -208,6 +208,19 @@ def product_form_view(request, pk=None):
     return render(request, "product_form.html", context)
 
 
+@login_required
+def product_detail_view(request, pk):
+    """Vista de detalle de un producto con sus fotos descargables."""
+    product = get_object_or_404(Product, pk=pk)
+    context = {
+        "title": f"{product.name}",
+        "product": product,
+        "edit_url": reverse("product_edit", args=[product.id]),
+        "list_url": reverse("list", args=["product"]),
+    }
+    return render(request, "product_detail.html", context)
+
+
 # ===== Vistas de facturas (compra/venta con múltiples líneas) =====
 PurchaseItemFormSet = inlineformset_factory(
     PurchaseInvoice, Purchase, PurchaseItemForm,

@@ -30,7 +30,7 @@
       ];
        const rawData = [
         {% for item in page_obj %}
-          {% if show_actions|default:True %}{% if model == 'purchase' %}{% url "purchase_invoice_edit" item.id as edit_url %}{% url "purchase_invoice_detail" item.id as detail_url %}{% elif model == 'sale' %}{% url "sale_invoice_edit" item.id as edit_url %}{% url "sale_invoice_detail" item.id as detail_url %}{% elif model == 'product' %}{% url "product_edit" item.id as edit_url %}{% else %}{% url "edit" model item.id as edit_url %}{% endif %}{% endif %}
+          {% if show_actions|default:True %}{% if model == 'purchase' %}{% url "purchase_invoice_edit" item.id as edit_url %}{% url "purchase_invoice_detail" item.id as detail_url %}{% elif model == 'sale' %}{% url "sale_invoice_edit" item.id as edit_url %}{% url "sale_invoice_detail" item.id as detail_url %}{% elif model == 'product' %}{% url "product_edit" item.id as edit_url %}{% url "product_detail" item.id as detail_url %}{% else %}{% url "edit" model item.id as edit_url %}{% endif %}{% endif %}
           [
             {% for col in columns %}
               '{{ item|format_value:col|escapejs }}'{% if not forloop.last %},{% endif %}

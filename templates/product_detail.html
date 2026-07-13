@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>{{ product.name }}</h1>
+
+  <p><strong>Categoría:</strong> {{ product.category }}</p>
+  {% if product.brand %}<p><strong>Marca:</strong> {{ product.brand }}</p>{% endif %}
+  {% if product.description %}<p><strong>Descripción:</strong> {{ product.description }}</p>{% endif %}
+  <p><strong>Stock:</strong> {{ product.stock }}</p>
+  <p><strong>Precio:</strong> C$ {{ product.price }}</p>
+  <p><strong>Costo promedio:</strong> C$ {{ product.average_cost }}</p>
+  <p><strong>Valor en inventario:</strong> C$ {% widthratio product.stock 1 product.average_cost %}</p>
+
+  <h2>Fotos</h2>
+  {% if product.images.all %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Imagen</th>
+          <th>Archivo</th>
+          <th>Subida</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for image in product.images.all %}
+        <tr>
+          <td>
+            <a href="{{ image.image.url }}" target="_blank">
+              <img src="{{ image.image.url }}" alt="Foto de {{ product.name }}"
+                   style="max-height: 96px; max-width: 96px; object-fit: cover;">
+            </a>
+          </td>
+          <td>{{ image.image.name }}</td>
+          <td>{{ image.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <a href="{{ image.image.url }}" download="{{ image.image.name }}"
+               role="button" title="Descargar">
+              <i class="material-icons">download</i> Descargar
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p>Este producto no tiene fotos.</p>
+  {% endif %}
+
+  <hr>
+  <a href="{{ list_url }}" role="button"><i class="material-icons">arrow_back</i> Volver</a>
+  <a href="{{ edit_url }}" role="button"><i class="material-icons">edit</i> Editar</a>
+</main>
+{% endblock %}
