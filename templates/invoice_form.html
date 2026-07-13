@@ -37,27 +37,28 @@
   </form>
 </main>
 
-<template id="empty-row">
-  <tr class="item-row">
-    <td>__PRODUCT__</td>
-    <td>__QUANTITY__</td>
-    {% if kind == 'purchase' %}<td>__COST__</td>{% endif %}
-    <td>__DELETE__</td>
-  </tr>
-</template>
+<div id="empty-row-template" style="display:none;">
+  <table><tbody>
+    <tr class="item-row">
+      <td>{{ formset.empty_form.product }}</td>
+      <td>{{ formset.empty_form.quantity }}</td>
+      {% if kind == 'purchase' %}<td>{{ formset.empty_form.cost }}</td>{% endif %}
+      <td>{{ formset.empty_form.DELETE }}{{ formset.empty_form.id.as_hidden }}{{ formset.empty_form.invoice.as_hidden }}</td>
+    </tr>
+  </tbody></table>
+</div>
 
 <script>
 function addItemRow() {
-  const totalForms = document.querySelector('#id_form-TOTAL_FORMS');
+  const totalForms = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
   const formCount = parseInt(totalForms.value, 10);
-  totalForms.value = formCount + 1;
 
-  const template = document.getElementById('empty-row');
-  let html = template.innerHTML;
-  html = html.replace(/__prefix__/g, formCount);
-  const tr = document.createElement('tr');
-  tr.innerHTML = html;
-  document.getElementById('items-body').appendChild(tr);
+  const sourceRow = document.querySelector('#empty-row-template tr');
+  const clone = sourceRow.cloneNode(true);
+  clone.innerHTML = clone.innerHTML.replace(/__prefix__/g, formCount);
+  document.getElementById('items-body').appendChild(clone);
+
+  totalForms.value = formCount + 1;
 }
 </script>
 {% endblock %}

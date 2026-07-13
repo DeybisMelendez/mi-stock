@@ -51,14 +51,15 @@
 
 <script>
 function addItemRow() {
-  const totalForms = document.querySelector('#id_form-TOTAL_FORMS');
+  const totalForms = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
   const formCount = parseInt(totalForms.value, 10);
-  totalForms.value = formCount + 1;
 
   const sourceRow = document.querySelector('#empty-row-template tr');
   const clone = sourceRow.cloneNode(true);
   clone.innerHTML = clone.innerHTML.replace(/__prefix__/g, formCount);
   document.getElementById('items-body').appendChild(clone);
+
+  totalForms.value = formCount + 1;
 }
 </script>
 {% endblock %}
