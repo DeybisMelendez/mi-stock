@@ -2,71 +2,21 @@
 {% block content %}
 
 <main class="container">
-  
+
   <!-- ENCABEZADO -->
   <header style="margin-bottom: 2rem;">
     <h1>Dashboard del Negocio</h1>
-    <p>Resumen de estadísticas para toma de decisiones - {{ today|date:"d/m/Y" }}</p>
+    <p>Resumen para toma de decisiones - {{ today|date:"d/m/Y" }}</p>
   </header>
 
-  <!-- KPI CARDS -->
+  <!-- KPIs -->
   <section style="margin-bottom: 3rem;">
-    <h2>Desempeño Financiero</h2>
-    
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-      
-      <!-- INGRESOS HOY -->
+
+      <!-- VENTAS DEL MES -->
       <article style="padding: 1rem; border-left: 4px solid var(--primary);">
         <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Hoy</h3>
-        </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ income_today|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          {% if income_yesterday > 0 %}
-            {% if growth_today > 0 %}
-              <span style="color: var(--success)">↗ {{ growth_today|floatformat:1 }}%</span> vs ayer
-            {% elif growth_today < 0 %}
-              <span style="color: var(--error)">↘ {{ growth_today|floatformat:1 }}%</span> vs ayer
-            {% else %}
-              <span>→ Igual que ayer</span>
-            {% endif %}
-          {% else %}
-            <span>Sin datos ayer</span>
-          {% endif %}
-          • {{ sales_count_today }} ventas
-        </footer>
-      </article>
-      
-      <!-- ÚLTIMOS 7 DÍAS -->
-      <article style="padding: 1rem; border-left: 4px solid var(--secondary);">
-        <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Últimos 7 días</h3>
-        </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ income_last_7_days|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          {% if income_previous_week > 0 %}
-            {% if growth_week > 0 %}
-              <span style="color: var(--success)">↗ {{ growth_week|floatformat:1 }}%</span> vs semana anterior
-            {% elif growth_week < 0 %}
-              <span style="color: var(--error)">↘ {{ growth_week|floatformat:1 }}%</span> vs semana anterior
-            {% else %}
-              <span>→ Igual que semana anterior</span>
-            {% endif %}
-          {% else %}
-            <span>Sin datos semana anterior</span>
-          {% endif %}
-          • {{ sales_count_last_7_days }} ventas
-        </footer>
-      </article>
-      
-      <!-- MES ACTUAL -->
-      <article style="padding: 1rem; border-left: 4px solid var(--contrast);">
-        <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Mes Actual</h3>
+          <h3 style="margin: 0 0 0.5rem 0;">Ventas del Mes</h3>
         </header>
         <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
           C$ {{ income_this_month|floatformat:2 }}
@@ -81,254 +31,188 @@
               <span>→ Igual que mes anterior</span>
             {% endif %}
           {% else %}
-            <span>Sin datos mes anterior</span>
+            <span>Sin datos del mes anterior</span>
           {% endif %}
-          • Desde {{ month_start|date:"d/m" }}
+          <br>
+          <span>Semestre: C$ {{ income_semester|floatformat:2 }}</span>
+          <br>
+          <span>Año: C$ {{ income_year|floatformat:2 }}</span>
         </footer>
       </article>
-      
-      <!-- ÚLTIMOS 30 DÍAS -->
-      <article style="padding: 1rem; border-left: 4px solid var(--highlight);">
+
+      <!-- VALOR DE INVENTARIO -->
+      <article style="padding: 1rem; border-left: 4px solid var(--secondary);">
         <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Últimos 30 días</h3>
+          <h3 style="margin: 0 0 0.5rem 0;">Valor de Inventario</h3>
         </header>
         <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ income_last_30_days|floatformat:2 }}
+          C$ {{ inventory_value|floatformat:2 }}
         </p>
         <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          <span>Margen: C$ {{ margin_last_30_days|floatformat:2 }}</span><br>
-          <span>Gastos: C$ {{ expenses_last_30_days|floatformat:2 }}</span>
+          <span>
+            {{ out_of_stock|length }} agotados • {{ low_stock|length }} bajo stock
+          </span>
         </footer>
       </article>
-      
+
+      <!-- GANANCIA DEL MES -->
+      <article style="padding: 1rem; border-left: 4px solid var(--success);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Ganancia del Mes</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ gross_profit_month|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          <span>Margen bruto: {{ gross_margin_pct|floatformat:1 }}%</span>
+        </footer>
+      </article>
+
+      <!-- GASTOS DEL MES -->
+      <article style="padding: 1rem; border-left: 4px solid var(--error);">
+        <header>
+          <h3 style="margin: 0 0 0.5rem 0;">Gastos del Mes</h3>
+        </header>
+        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
+          C$ {{ expenses_this_month|floatformat:2 }}
+        </p>
+        <footer style="font-size: 0.9rem; color: var(--muted-color);">
+          {% if expenses_growth > 0 %}
+            <span style="color: var(--error)">↗ {{ expenses_growth|floatformat:1 }}%</span> vs mes anterior
+          {% elif expenses_growth < 0 %}
+            <span style="color: var(--success)">↘ {{ expenses_growth|floatformat:1 }}%</span> vs mes anterior
+          {% else %}
+            <span>→ Igual que mes anterior</span>
+          {% endif %}
+        </footer>
+      </article>
+
     </div>
   </section>
 
-  <!-- GRÁFICOS -->
+  <!-- TENDENCIAS -->
   <section style="margin-bottom: 3rem;">
-    <h2>Tendencias y Distribución</h2>
-    
+    <h2>Tendencias</h2>
+
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
-      
-      <!-- GRÁFICO DE VENTAS ÚLTIMOS 7 DÍAS -->
+
+      <!-- VENTAS ÚLTIMOS 12 MESES -->
       <article>
         <header>
-          <h3>Ventas últimos 7 días</h3>
+          <h3>Ventas últimos 12 meses</h3>
         </header>
-        <canvas id="salesChart" height="200"></canvas>
+        <canvas id="monthlyChart" height="200"></canvas>
       </article>
-      
-      <!-- GRÁFICO DE DISTRIBUCIÓN POR CATEGORÍA -->
+
+      <!-- VENTAS POR CATEGORÍA -->
       <article>
         <header>
           <h3>Ventas por categoría (30 días)</h3>
         </header>
         <canvas id="categoryChart" height="200"></canvas>
       </article>
-      
+
     </div>
   </section>
 
   <!-- PRODUCTOS MÁS VENDIDOS -->
   <section style="margin-bottom: 3rem;">
     <h2>Productos Más Vendidos</h2>
-    
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
-      
-      <!-- RESUMEN DEL MES -->
-      <article>
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3>Top 5 del Mes</h3>
-          <a href="{% url 'top_products' %}" role="button" style="font-size: 0.9rem;">Ver todos</a>
-        </header>
-        
-        {% if top_products_month %}
-        <div class="table-wrap">
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="border-bottom: 2px solid var(--muted-border-color);">
-              <th style="text-align: left; padding: 0.5rem;">Producto</th>
-              <th style="text-align: right; padding: 0.5rem;">Cantidad</th>
-              <th style="text-align: right; padding: 0.5rem;">Ingresos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for product in top_products_month|slice:":5" %}
-            <tr style="border-bottom: 1px solid var(--muted-border-color);">
-              <td style="padding: 0.5rem;">{{ product.product__name }}</td>
-              <td style="text-align: right; padding: 0.5rem;">{{ product.total_sold }}</td>
-              <td style="text-align: right; padding: 0.5rem;">C$ {{ product.total_revenue|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+
+    <article>
+      <div x-data="{ tab: 'mes' }">
+        <div role="tablist" style="margin-bottom: 1rem;">
+          <button role="tab" :class="tab === 'mes' ? 'contrast' : 'outline'"
+                  @click="tab = 'mes'">Mes</button>
+          <button role="tab" :class="tab === 'semestre' ? 'contrast' : 'outline'"
+                  @click="tab = 'semestre'">Semestre</button>
+          <button role="tab" :class="tab === 'año' ? 'contrast' : 'outline'"
+                  @click="tab = 'año'">Año</button>
         </div>
-        {% else %}
-        <p>No hay ventas en el último mes.</p>
-        {% endif %}
-        
-        <footer style="margin-top: 1rem; font-size: 0.9rem; color: var(--muted-color);">
-          <p>Períodos: 
-            <a href="{% url 'top_products_period' 'hoy' %}">Hoy</a> | 
-            <a href="{% url 'top_products_period' 'semana' %}">Semana</a> | 
-            <a href="{% url 'top_products_period' 'mes' %}">Mes</a> | 
-            <a href="{% url 'top_products_period' 'total' %}">Total</a>
-          </p>
-        </footer>
-      </article>
-      
-      <!-- RESUMEN DE LA SEMANA -->
-      <article>
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3>Top 5 de la Semana</h3>
-          <a href="{% url 'top_products_period' 'semana' %}" role="button" style="font-size: 0.9rem;">Ver todos</a>
-        </header>
-        
-        {% if top_products_week %}
-        <div class="table-wrap">
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="border-bottom: 2px solid var(--muted-border-color);">
-              <th style="text-align: left; padding: 0.5rem;">Producto</th>
-              <th style="text-align: right; padding: 0.5rem;">Cantidad</th>
-              <th style="text-align: right; padding: 0.5rem;">Ingresos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for product in top_products_week|slice:":5" %}
-            <tr style="border-bottom: 1px solid var(--muted-border-color);">
-              <td style="padding: 0.5rem;">{{ product.product__name }}</td>
-              <td style="text-align: right; padding: 0.5rem;">{{ product.total_sold }}</td>
-              <td style="text-align: right; padding: 0.5rem;">C$ {{ product.total_revenue|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+
+        {% for key, products, period_url in top_products %}
+        <div x-show="tab === '{{ key }}'">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <small style="color: var(--muted-color);">
+              {% if key == 'mes' %}{{ month_label }}{% elif key == 'semestre' %}{{ semester_label }}{% else %}{{ year_label }}{% endif %}
+            </small>
+            <a href="{% url 'top_products_period' period_url %}" style="font-size: 0.9rem;">Ver todos</a>
+          </div>
+
+          {% if products %}
+          <div class="table-wrap">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--muted-border-color);">
+                <th style="text-align: left; padding: 0.5rem;">#</th>
+                <th style="text-align: left; padding: 0.5rem;">Producto</th>
+                <th style="text-align: left; padding: 0.5rem;">Categoría</th>
+                <th style="text-align: right; padding: 0.5rem;">Cantidad</th>
+                <th style="text-align: right; padding: 0.5rem;">Ingresos</th>
+                <th style="text-align: right; padding: 0.5rem;">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for product in products %}
+              <tr style="border-bottom: 1px solid var(--muted-border-color);">
+                <td style="padding: 0.5rem;">{{ forloop.counter }}</td>
+                <td style="padding: 0.5rem;">{{ product.product__name }}</td>
+                <td style="padding: 0.5rem;">{{ product.product__category__name|default:"Sin categoría" }}</td>
+                <td style="text-align: right; padding: 0.5rem;">{{ product.total_sold }}</td>
+                <td style="text-align: right; padding: 0.5rem;">C$ {{ product.total_revenue|floatformat:2 }}</td>
+                <td style="text-align: right; padding: 0.5rem;">{{ product.percentage|floatformat:1 }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          </div>
+          {% else %}
+          <p>No hay ventas en este período.</p>
+          {% endif %}
         </div>
-        {% else %}
-        <p>No hay ventas en la última semana.</p>
-        {% endif %}
-        
-        <footer style="margin-top: 1rem; font-size: 0.9rem; color: var(--muted-color);">
-          <p>Resumen de los últimos 7 días</p>
-        </footer>
-      </article>
-      
-    </div>
+        {% endfor %}
+
+      </div>
+    </article>
   </section>
 
-  <!-- MÉTRICAS DEL NEGOCIO -->
+  <!-- ALERTAS DE INVENTARIO -->
   <section>
-    <h2>Métricas del Negocio</h2>
-    
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-      
-      <!-- COMPRAS MES ACTUAL -->
-      <article style="padding: 1rem; border-left: 4px solid var(--primary);">
+    <h2>Alertas de Inventario</h2>
+
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+
+      <article>
         <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Compras Mes Actual</h3>
+          <h3>Agotados ({{ out_of_stock|length }})</h3>
         </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ purchases_this_month|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          {% if purchases_last_month > 0 %}
-            {% if purchases_growth > 0 %}
-              <span style="color: var(--error)">↗ {{ purchases_growth|floatformat:1 }}%</span> vs mes anterior
-            {% elif purchases_growth < 0 %}
-              <span style="color: var(--success)">↘ {{ purchases_growth|floatformat:1 }}%</span> vs mes anterior
-            {% else %}
-              <span>→ Igual que mes anterior</span>
-            {% endif %}
-          {% else %}
-            <span>Sin datos mes anterior</span>
-          {% endif %}
-        </footer>
-      </article>
-      
-      <!-- COMPRAS ÚLTIMOS 30 DÍAS -->
-      <article style="padding: 1rem; border-left: 4px solid var(--secondary);">
-        <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Compras Últimos 30 días</h3>
-        </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ purchases_last_30_days|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          <span>Inversión en inventario</span>
-        </footer>
-      </article>
-      
-      <!-- GASTOS MES ACTUAL -->
-      <article style="padding: 1rem; border-left: 4px solid var(--contrast);">
-        <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Gastos Mes Actual</h3>
-        </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ expenses_this_month|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          {% if expenses_last_month > 0 %}
-            {% if expenses_growth > 0 %}
-              <span style="color: var(--error)">↗ {{ expenses_growth|floatformat:1 }}%</span> vs mes anterior
-            {% elif expenses_growth < 0 %}
-              <span style="color: var(--success)">↘ {{ expenses_growth|floatformat:1 }}%</span> vs mes anterior
-            {% else %}
-              <span>→ Igual que mes anterior</span>
-            {% endif %}
-          {% else %}
-            <span>Sin datos mes anterior</span>
-          {% endif %}
-        </footer>
-      </article>
-      
-      <!-- GASTOS ÚLTIMOS 30 DÍAS -->
-      <article style="padding: 1rem; border-left: 4px solid var(--highlight);">
-        <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Gastos Últimos 30 días</h3>
-        </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ expenses_last_30_days|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          <span>Gastos operativos</span>
-        </footer>
+        {% if out_of_stock %}
+        <ul style="margin: 0;">
+          {% for product in out_of_stock %}
+          <li><a href="{% url 'product_detail' product.id %}">{{ product.name }}</a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color: var(--success);">No hay productos agotados.</p>
+        {% endif %}
       </article>
 
-      <!-- OTROS INGRESOS MES ACTUAL -->
-      <article style="padding: 1rem; border-left: 4px solid var(--success);">
+      <article>
         <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Otros Ingresos Mes Actual</h3>
+          <h3>Bajo stock ({{ low_stock|length }})</h3>
         </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ other_income_this_month|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          {% if other_income_last_month > 0 %}
-            {% if other_income_growth > 0 %}
-              <span style="color: var(--success)">↗ {{ other_income_growth|floatformat:1 }}%</span> vs mes anterior
-            {% elif other_income_growth < 0 %}
-              <span style="color: var(--error)">↘ {{ other_income_growth|floatformat:1 }}%</span> vs mes anterior
-            {% else %}
-              <span>→ Igual que mes anterior</span>
-            {% endif %}
-          {% else %}
-            <span>Sin datos mes anterior</span>
-          {% endif %}
-        </footer>
-      </article>
-
-      <!-- OTROS INGRESOS ÚLTIMOS 30 DÍAS -->
-      <article style="padding: 1rem; border-left: 4px solid var(--success);">
-        <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Otros Ingresos Últimos 30 días</h3>
-        </header>
-        <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ other_income_last_30_days|floatformat:2 }}
-        </p>
-        <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          <span>Ingresos no provenientes de ventas</span>
-        </footer>
+        {% if low_stock %}
+        <ul style="margin: 0;">
+          {% for product in low_stock %}
+          <li>
+            <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
+            <small style="color: var(--muted-color);">- {{ product.stock }} u.</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p style="color: var(--success);">Sin productos con bajo stock.</p>
+        {% endif %}
       </article>
 
     </div>
@@ -340,19 +224,18 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-// Gráfico de ventas últimos 7 días
-const salesCtx = document.getElementById('salesChart').getContext('2d');
-const salesChart = new Chart(salesCtx, {
-    type: 'line',
+// Ventas últimos 12 meses
+const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+new Chart(monthlyCtx, {
+    type: 'bar',
     data: {
-         labels: {{ daily_sales_labels_json|safe }},
+        labels: {{ monthly_labels_json|safe }},
         datasets: [{
             label: 'Ingresos (C$)',
-             data: {{ daily_sales_values_json|safe }},
+            data: {{ monthly_values_json|safe }},
+            backgroundColor: 'rgba(75, 192, 192, 0.6)',
             borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.1)',
-            tension: 0.3,
-            fill: true
+            borderWidth: 1
         }]
     },
     options: {
@@ -373,16 +256,16 @@ const salesChart = new Chart(salesCtx, {
     }
 });
 
-// Gráfico de categorías
+// Ventas por categoría
 const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-const categoryChart = new Chart(categoryCtx, {
+new Chart(categoryCtx, {
     type: 'doughnut',
     data: {
-         labels: {{ category_labels_json|safe }},
+        labels: {{ category_labels_json|safe }},
         datasets: [{
-             data: {{ category_values_json|safe }},
+            data: {{ category_values_json|safe }},
             backgroundColor: [
-                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
                 '#9966FF', '#FF9F40', '#8AC926', '#1982C4'
             ]
         }]

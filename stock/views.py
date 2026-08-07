@@ -18,6 +18,7 @@ from .forms import (
 )
 from django.apps import apps
 from django.db.models import Sum, F
+from django.db.models.functions import TruncMonth
 from django.utils.timezone import now
 from datetime import timedelta, date
 import json
@@ -318,270 +319,155 @@ def sale_invoice_detail_view(request, pk):
     return render(request, "invoice_detail.html", context)
 
 
+def _top_products(since):
+    """Top productos por unidades vendidas desde la fecha dada."""
+    rows = (
+        Sale.objects.filter(invoice__date__gte=since)
+        .values("product__name", "product__category__name")
+        .annotate(
+            total_sold=Sum("quantity"),
+            total_revenue=Sum(F("quantity") * F("price")),
+        )
+        .order_by("-total_sold")[:10]
+    )
+    total_sold = sum(r["total_sold"] for r in rows) or 0
+    for r in rows:
+        r["percentage"] = (r["total_sold"] / total_sold * 100) if total_sold else 0
+    return list(rows)
+
+
+def _period_label(start, end):
+    """Ej: 'Ene 2026', 'Ene – Jun 2026' o 'Ene 2025 – Jun 2026' según el rango."""
+    if start.year != end.year:
+        return f"{start.strftime('%b %Y')} – {end.strftime('%b %Y')}"
+    if start.month != end.month:
+        return f"{start.strftime('%b')} – {end.strftime('%b %Y')}"
+    return f"{start.strftime('%b %Y')}"
+
+
 @login_required
 def home(request):
-    today = now()
-    today_date = today.date()
-    yesterday_date = today_date - timedelta(days=1)
-    week_date = today_date - timedelta(days=7)
-    last_week_date = today_date - timedelta(days=14)
+    today_date = now().date()
+
+    # ===== PERÍODOS CALENDARIO =====
     month_start = today_date.replace(day=1)
     prev_month_end = month_start - timedelta(days=1)
     prev_month_start = prev_month_end.replace(day=1)
+    sem_start = today_date.replace(month=(7 if today_date.month > 6 else 1), day=1)
+    year_start = today_date.replace(month=1, day=1)
     last30_date = today_date - timedelta(days=30)
-    last365_date = today_date - timedelta(days=365)
 
-    # ===== INGRESOS POR PERÍODO =====
-    income_today = Sale.objects.filter(
-        invoice__date__gte=today_date
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_yesterday = Sale.objects.filter(
-        invoice__date__gte=yesterday_date, invoice__date__lt=today_date
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_last_7_days = Sale.objects.filter(
-        invoice__date__gte=week_date
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_previous_week = Sale.objects.filter(
-        invoice__date__gte=last_week_date, invoice__date__lt=week_date
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_this_month = Sale.objects.filter(
-        invoice__date__gte=month_start
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_last_month = Sale.objects.filter(
-        invoice__date__gte=prev_month_start, invoice__date__lte=prev_month_end
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_last_30_days = Sale.objects.filter(
-        invoice__date__gte=last30_date
-    ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-
-    income_total = Sale.objects.aggregate(
-        total=Sum(F("quantity") * F("price"))
-    )["total"] or 0
-
-    # ===== PORCENTAJES DE CRECIMIENTO =====
     def growth_percentage(current, previous):
         if previous == 0:
             return 100 if current > 0 else 0
         return ((current - previous) / previous) * 100
 
-    growth_today = growth_percentage(income_today, income_yesterday)
-    growth_week = growth_percentage(income_last_7_days, income_previous_week)
-    growth_month = growth_percentage(income_this_month, income_last_month)
+    def sale_sum(start, end=None):
+        qs = Sale.objects.filter(invoice__date__gte=start)
+        if end:
+            qs = qs.filter(invoice__date__lte=end)
+        return qs.aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
 
-    # ===== COMPRAS Y GASTOS =====
-    purchases_this_month = Purchase.objects.filter(
-        invoice__date__gte=month_start
-    ).aggregate(total=Sum(F("quantity") * F("cost")))["total"] or 0
+    # ===== INGRESOS Y COSTOS =====
+    income_this_month = sale_sum(month_start, None)
+    income_last_month = sale_sum(prev_month_start, prev_month_end)
+    income_semester = sale_sum(sem_start, None)
+    income_year = sale_sum(year_start, None)
+    cost_this_month = sale_sum(month_start, None)
 
-    purchases_last_month = Purchase.objects.filter(
-        invoice__date__gte=prev_month_start, invoice__date__lte=prev_month_end
-    ).aggregate(total=Sum(F("quantity") * F("cost")))["total"] or 0
-
-    purchases_last_30_days = Purchase.objects.filter(
-        invoice__date__gte=last30_date
-    ).aggregate(total=Sum(F("quantity") * F("cost")))["total"] or 0
-
+    # ===== GASTOS =====
     expenses_this_month = Expense.objects.filter(
-        date__gte=month_start
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
+        date__gte=month_start).aggregate(total=Sum("amount"))["total"] or 0
     expenses_last_month = Expense.objects.filter(
         date__gte=prev_month_start, date__lte=prev_month_end
     ).aggregate(total=Sum("amount"))["total"] or 0
 
-    purchases_growth = growth_percentage(purchases_this_month, purchases_last_month)
-    expenses_growth = growth_percentage(expenses_this_month, expenses_last_month)
-
-    # ===== OTROS INGRESOS (no provenientes de ventas) =====
-    other_income_this_month = OtherIncome.objects.filter(
-        date__gte=month_start
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    other_income_last_month = OtherIncome.objects.filter(
-        date__gte=prev_month_start, date__lte=prev_month_end
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    other_income_last_30_days = OtherIncome.objects.filter(
-        date__gte=last30_date
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    other_income_total = OtherIncome.objects.aggregate(
-        total=Sum("amount")
-    )["total"] or 0
-
-    other_income_growth = growth_percentage(
-        other_income_this_month, other_income_last_month
-    )
-
-    # ===== VENTAS (CANTIDAD) POR PERÍODO =====
-    sales_count_today = Sale.objects.filter(invoice__date__gte=today_date).count()
-    sales_count_last_7_days = Sale.objects.filter(invoice__date__gte=week_date).count()
-    sales_count_total = Sale.objects.count()
-
-    # ===== MÁRGENES Y COSTOS =====
-    margin_last_30_days = Sale.objects.filter(
-        invoice__date__gte=last30_date
-    ).aggregate(m=Sum((F("price") - F("cost")) * F("quantity")))["m"] or 0
-
-    margin_total = Sale.objects.aggregate(
-        m=Sum((F("price") - F("cost")) * F("quantity"))
-    )["m"] or 0
-
-    expenses_last_30_days = Expense.objects.filter(
-        date__gte=last30_date
-    ).aggregate(total=Sum("amount"))["total"] or 0
+    # ===== GANANCIA DEL MES =====
+    gross_profit_month = income_this_month - cost_this_month
+    gross_margin_pct = (gross_profit_month / income_this_month * 100) if income_this_month else 0
 
     # ===== INVENTARIO =====
-    inventory_value = Product.objects.annotate(
-        value=F("stock") * F("average_cost")
-    ).aggregate(total=Sum("value"))["total"] or 0
-
-    low_stock = Product.objects.filter(stock__lt=2).order_by("stock")[:10]
-    out_of_stock = Product.objects.filter(stock=0).order_by("name")[:10]
-
-    # ===== TOP PRODUCTOS =====
-    top_products_today = (
-        Sale.objects.filter(invoice__date__gte=today_date)
-        .values("product__name")
-        .annotate(total_sold=Sum("quantity"), total_revenue=Sum(F("quantity") * F("price")))
-        .order_by("-total_sold")[:5]
+    inventory_value = (
+        Product.objects.annotate(value=F("stock") * F("average_cost"))
+        .aggregate(total=Sum("value"))["total"] or 0
     )
+    low_stock = Product.objects.filter(stock__gt=0, stock__lt=2).order_by("stock")
+    out_of_stock = Product.objects.filter(stock=0).order_by("name")
 
-    top_products_week = (
-        Sale.objects.filter(invoice__date__gte=week_date)
-        .values("product__name")
-        .annotate(total_sold=Sum("quantity"), total_revenue=Sum(F("quantity") * F("price")))
-        .order_by("-total_sold")[:5]
-    )
+    # ===== TOP PRODUCTOS (mes, semestre, año calendario) =====
+    top_products_month = _top_products(month_start)
+    top_products_semester = _top_products(sem_start)
+    top_products_year = _top_products(year_start)
 
-    top_products_month = (
-        Sale.objects.filter(invoice__date__gte=last30_date)
-        .values("product__name")
-        .annotate(total_sold=Sum("quantity"), total_revenue=Sum(F("quantity") * F("price")))
-        .order_by("-total_sold")[:5]
-    )
-
-    # ===== TOP CATEGORÍAS =====
-    top_categories_month = (
+    # ===== TOP CATEGORÍAS (30 días) =====
+    top_categories = (
         Sale.objects.filter(invoice__date__gte=last30_date)
         .values("product__category__name")
-        .annotate(total_sold=Sum("quantity"), total_revenue=Sum(F("quantity") * F("price")))
-        .order_by("-total_sold")[:5]
+        .annotate(total_revenue=Sum(F("quantity") * F("price")))
+        .order_by("-total_revenue")[:5]
     )
 
-    # ===== PROYECCIÓN DE INVENTARIO =====
-    products_with_stock = Product.objects.filter(stock__gt=0)
-    projection_rows = []
+    # ===== TENDENCIA: INGRESOS POR MES (últimos 12 meses) =====
+    twelve_months_ago = (today_date.replace(day=1) - timedelta(days=365)).replace(day=1)
+    month_map = {
+        m["month"]: float(m["total"])
+        for m in (
+            Sale.objects.filter(invoice__date__gte=twelve_months_ago)
+            .annotate(month=TruncMonth("invoice__date"))
+            .values("month")
+            .annotate(total=Sum(F("quantity") * F("price")))
+        )
+    }
 
-    for p in products_with_stock:
-        sold_365 = Sale.objects.filter(
-            product=p, invoice__date__gte=last365_date
-        ).aggregate(total=Sum("quantity"))["total"] or 0
-
-        if sold_365 > 0:
-            days_per_unit = 365 / sold_365
-            days_to_runout = p.stock * days_per_unit
-        else:
-            days_per_unit = None
-            days_to_runout = None
-
-        projection_rows.append({
-            "product": p,
-            "sold_365": sold_365,
-            "days_per_unit": days_per_unit,
-            "days_to_runout": days_to_runout,
-        })
-
-    business_projection = sorted(
-        [row for row in projection_rows if row["days_to_runout"] is not None],
-        key=lambda r: r["days_to_runout"]
-    )[:5]
+    monthly_labels = []
+    monthly_values = []
+    current = today_date.replace(day=1)
+    for _ in range(12):
+        monthly_labels.append(current.strftime("%b %y"))
+        monthly_values.append(month_map.get(current, 0))
+        current = (current - timedelta(days=1)).replace(day=1)
+    monthly_labels.reverse()
+    monthly_values.reverse()
 
     # ===== DATOS PARA GRÁFICOS =====
-    daily_sales_labels = []
-    daily_sales_values = []
-    for i in range(7):
-        day_start = today_date - timedelta(days=i)
-        day_end = day_start + timedelta(days=1)
-        day_income = Sale.objects.filter(
-            invoice__date__gte=day_start, invoice__date__lt=day_end
-        ).aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
-        day_income_float = float(day_income)
-        daily_sales_labels.insert(0, day_start.strftime("%a %d"))
-        daily_sales_values.insert(0, day_income_float)
-
-    category_labels = []
-    category_values = []
-    for cat in top_categories_month:
-        category_name = cat["product__category__name"] or "Sin categoría"
-        category_labels.append(category_name)
-        category_values.append(float(cat["total_revenue"]))
-
-    daily_sales_labels_json = json.dumps(daily_sales_labels)
-    daily_sales_values_json = json.dumps(daily_sales_values)
-    category_labels_json = json.dumps(category_labels)
-    category_values_json = json.dumps(category_values)
+    category_labels = [c["product__category__name"] or "Sin categoría"
+                       for c in top_categories]
+    category_values = [float(c["total_revenue"]) for c in top_categories]
 
     context = {
         "today": today_date,
-        "week_start": week_date,
-        "month_start": month_start,
+        "month_label": month_start.strftime("%B %Y").capitalize(),
+        "semester_label": _period_label(sem_start, today_date),
+        "year_label": str(year_start.year),
 
-        "income_today": income_today,
-        "income_yesterday": income_yesterday,
-        "income_last_7_days": income_last_7_days,
-        "income_previous_week": income_previous_week,
         "income_this_month": income_this_month,
         "income_last_month": income_last_month,
-        "income_last_30_days": income_last_30_days,
-        "income_total": income_total,
+        "income_semester": income_semester,
+        "income_year": income_year,
+        "growth_month": growth_percentage(income_this_month, income_last_month),
 
-        "growth_today": growth_today,
-        "growth_week": growth_week,
-        "growth_month": growth_month,
-
-        "sales_count_today": sales_count_today,
-        "sales_count_last_7_days": sales_count_last_7_days,
-        "sales_count_total": sales_count_total,
-
-        "margin_last_30_days": margin_last_30_days,
-        "margin_total": margin_total,
-        "expenses_last_30_days": expenses_last_30_days,
+        "gross_profit_month": gross_profit_month,
+        "gross_margin_pct": gross_margin_pct,
         "expenses_this_month": expenses_this_month,
-        "expenses_last_month": expenses_last_month,
-        "expenses_growth": expenses_growth,
-        "other_income_this_month": other_income_this_month,
-        "other_income_last_month": other_income_last_month,
-        "other_income_last_30_days": other_income_last_30_days,
-        "other_income_total": other_income_total,
-        "other_income_growth": other_income_growth,
-        "purchases_this_month": purchases_this_month,
-        "purchases_last_month": purchases_last_month,
-        "purchases_last_30_days": purchases_last_30_days,
-        "purchases_growth": purchases_growth,
+        "expenses_growth": growth_percentage(expenses_this_month, expenses_last_month),
 
         "inventory_value": inventory_value,
         "low_stock": low_stock,
         "out_of_stock": out_of_stock,
 
-        "top_products_today": top_products_today,
-        "top_products_week": top_products_week,
         "top_products_month": top_products_month,
+        "top_products_semester": top_products_semester,
+        "top_products_year": top_products_year,
+        "top_products": [
+            ("mes", top_products_month, "mes"),
+            ("semestre", top_products_semester, "semestre"),
+            ("año", top_products_year, "año"),
+        ],
 
-        "top_categories_month": top_categories_month,
-
-        "business_projection": business_projection,
-
-        "daily_sales_labels_json": daily_sales_labels_json,
-        "daily_sales_values_json": daily_sales_values_json,
-        "category_labels_json": category_labels_json,
-        "category_values_json": category_values_json,
+        "monthly_labels_json": json.dumps(monthly_labels),
+        "monthly_values_json": json.dumps(monthly_values),
+        "category_labels_json": json.dumps(category_labels),
+        "category_values_json": json.dumps(category_values),
     }
 
     return render(request, "home.html", context)
@@ -799,6 +685,8 @@ def top_products_view(request, period='mes'):
     today = now().date()
     week_date = today - timedelta(days=7)
     last30 = today - timedelta(days=30)
+    sem_start = today.replace(month=(7 if today.month > 6 else 1), day=1)
+    year_start = today.replace(month=1, day=1)
 
     if period == 'hoy':
         date_filter = {'invoice__date__gte': today}
@@ -809,6 +697,12 @@ def top_products_view(request, period='mes'):
     elif period == 'mes':
         date_filter = {'invoice__date__gte': last30}
         title = "Productos Más Vendidos - Último Mes"
+    elif period == 'semestre':
+        date_filter = {'invoice__date__gte': sem_start}
+        title = "Productos Más Vendidos - Semestre Actual"
+    elif period == 'año':
+        date_filter = {'invoice__date__gte': year_start}
+        title = "Productos Más Vendidos - Año Actual"
     elif period == 'total':
         date_filter = {}
         title = "Productos Más Vendidos - Total Histórico"
