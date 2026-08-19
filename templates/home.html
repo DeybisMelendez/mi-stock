@@ -22,16 +22,12 @@
           C$ {{ income_this_month|floatformat:2 }}
         </p>
         <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          {% if income_last_month > 0 %}
-            {% if growth_month > 0 %}
-              <span style="color: var(--success)">↗ {{ growth_month|floatformat:1 }}%</span> vs mes anterior
-            {% elif growth_month < 0 %}
-              <span style="color: var(--error)">↘ {{ growth_month|floatformat:1 }}%</span> vs mes anterior
-            {% else %}
-              <span>→ Igual que mes anterior</span>
-            {% endif %}
+          {% if growth_month > 0 %}
+            <span style="color: var(--success)">↗ {{ growth_month|floatformat:1 }}%</span> vs mes anterior
+          {% elif growth_month < 0 %}
+            <span style="color: var(--error)">↘ {{ growth_month|floatformat:1 }}%</span> vs mes anterior
           {% else %}
-            <span>Sin datos del mes anterior</span>
+            <span>→ Igual que mes anterior</span>
           {% endif %}
           <br>
           <span>Semestre: C$ {{ income_semester|floatformat:2 }}</span>
@@ -55,16 +51,16 @@
         </footer>
       </article>
 
-      <!-- GANANCIA DEL MES -->
-      <article style="padding: 1rem; border-left: 4px solid var(--success);">
+      <!-- GANANCIA NETA DEL MES -->
+      <article style="padding: 1rem; border-left: 4px solid var(--pico-color-jade-500, #2bb673);">
         <header>
-          <h3 style="margin: 0 0 0.5rem 0;">Ganancia del Mes</h3>
+          <h3 style="margin: 0 0 0.5rem 0;">Ganancia Neta del Mes</h3>
         </header>
         <p style="font-size: 1.5rem; font-weight: bold; margin: 0 0 0.5rem 0;">
-          C$ {{ gross_profit_month|floatformat:2 }}
+          C$ {{ net_profit_month|floatformat:2 }}
         </p>
         <footer style="font-size: 0.9rem; color: var(--muted-color);">
-          <span>Margen bruto: {{ gross_margin_pct|floatformat:1 }}%</span>
+          <span>Margen neto: {{ net_margin_pct|floatformat:1 }}%</span>
         </footer>
       </article>
 
@@ -149,7 +145,7 @@
                 <th style="text-align: left; padding: 0.5rem;">Categoría</th>
                 <th style="text-align: right; padding: 0.5rem;">Cantidad</th>
                 <th style="text-align: right; padding: 0.5rem;">Ingresos</th>
-                <th style="text-align: right; padding: 0.5rem;">%</th>
+                <th style="text-align: right; padding: 0.5rem;">% ingresos</th>
               </tr>
             </thead>
             <tbody>

@@ -320,7 +320,7 @@ def sale_invoice_detail_view(request, pk):
 
 
 def _top_products(since):
-    """Top productos por unidades vendidas desde la fecha dada."""
+    """Top productos por ingresos desde la fecha dada."""
     rows = (
         Sale.objects.filter(invoice__date__gte=since)
         .values("product__name", "product__category__name")
@@ -328,11 +328,11 @@ def _top_products(since):
             total_sold=Sum("quantity"),
             total_revenue=Sum(F("quantity") * F("price")),
         )
-        .order_by("-total_sold")[:10]
+        .order_by("-total_revenue")[:10]
     )
-    total_sold = sum(r["total_sold"] for r in rows) or 0
+    total_revenue = sum(r["total_revenue"] for r in rows) or 0
     for r in rows:
-        r["percentage"] = (r["total_sold"] / total_sold * 100) if total_sold else 0
+        r["percentage"] = (r["total_revenue"] / total_revenue * 100) if total_revenue else 0
     return list(rows)
 
 
@@ -368,23 +368,39 @@ def home(request):
             qs = qs.filter(invoice__date__lte=end)
         return qs.aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
 
+    def cost_sum(start, end):
+        return (
+            Sale.objects.filter(invoice__date__range=[start, end])
+            .aggregate(total=Sum(F("quantity") * F("cost")))["total"]
+            or 0
+        )
+
     # ===== INGRESOS Y COSTOS =====
-    income_this_month = sale_sum(month_start, None)
+    income_this_month = sale_sum(month_start, today_date)
     income_last_month = sale_sum(prev_month_start, prev_month_end)
     income_semester = sale_sum(sem_start, None)
     income_year = sale_sum(year_start, None)
-    cost_this_month = sale_sum(month_start, None)
+    cost_this_month = cost_sum(month_start, today_date)
 
-    # ===== GASTOS =====
+    # ===== GASTOS Y OTROS INGRESOS =====
     expenses_this_month = Expense.objects.filter(
-        date__gte=month_start).aggregate(total=Sum("amount"))["total"] or 0
+        date__range=[month_start, today_date]
+    ).aggregate(total=Sum("amount"))["total"] or 0
     expenses_last_month = Expense.objects.filter(
         date__gte=prev_month_start, date__lte=prev_month_end
+    ).aggregate(total=Sum("amount"))["total"] or 0
+    other_income_this_month = OtherIncome.objects.filter(
+        date__range=[month_start, today_date]
     ).aggregate(total=Sum("amount"))["total"] or 0
 
     # ===== GANANCIA DEL MES =====
     gross_profit_month = income_this_month - cost_this_month
+    net_profit_month = (
+        income_this_month + other_income_this_month
+        - cost_this_month - expenses_this_month
+    )
     gross_margin_pct = (gross_profit_month / income_this_month * 100) if income_this_month else 0
+    net_margin_pct = (net_profit_month / income_this_month * 100) if income_this_month else 0
 
     # ===== INVENTARIO =====
     inventory_value = (
@@ -448,6 +464,9 @@ def home(request):
 
         "gross_profit_month": gross_profit_month,
         "gross_margin_pct": gross_margin_pct,
+        "net_profit_month": net_profit_month,
+        "net_margin_pct": net_margin_pct,
+        "other_income_this_month": other_income_this_month,
         "expenses_this_month": expenses_this_month,
         "expenses_growth": growth_percentage(expenses_this_month, expenses_last_month),
 
@@ -499,7 +518,7 @@ def month_result(request, month_offset=0):
     start, end = month_range_from_offset(month_offset)
 
     sale_filter = {"invoice__date__range": [start, end]}
-    expense_filter = {"date__range": [start, end]}
+    date_filter = {"date__range": [start, end]}
 
     # Ingresos y costos del mes
     income = (
@@ -513,12 +532,12 @@ def month_result(request, month_offset=0):
     )["total"] or 0
 
     expenses = (
-        Expense.objects.filter(**expense_filter)
+        Expense.objects.filter(**date_filter)
         .aggregate(total=Sum("amount"))
     )["total"] or 0
 
     other_income = (
-        OtherIncome.objects.filter(**expense_filter)
+        OtherIncome.objects.filter(**date_filter)
         .aggregate(total=Sum("amount"))
     )["total"] or 0
 
@@ -540,11 +559,11 @@ def month_result(request, month_offset=0):
 
     # Gastos del mes: lista detallada y agrupada por categoría
     expenses_list = list(
-        Expense.objects.filter(**expense_filter).order_by("-date", "-id")
+        Expense.objects.filter(**date_filter).order_by("-date", "-id")
     )
 
     expenses_by_category = (
-        Expense.objects.filter(**expense_filter)
+        Expense.objects.filter(**date_filter)
         .values("category__name")
         .annotate(total=Sum("amount"))
         .order_by("-total")
@@ -552,11 +571,11 @@ def month_result(request, month_offset=0):
 
     # Otros ingresos del mes: lista detallada y agrupada por categoría
     other_income_list = list(
-        OtherIncome.objects.filter(**expense_filter).order_by("-date", "-id")
+        OtherIncome.objects.filter(**date_filter).order_by("-date", "-id")
     )
 
     other_income_by_category = (
-        OtherIncome.objects.filter(**expense_filter)
+        OtherIncome.objects.filter(**date_filter)
         .values("category__name")
         .annotate(total=Sum("amount"))
         .order_by("-total")
@@ -684,7 +703,7 @@ def top_products_view(request, period='mes'):
     """
     today = now().date()
     week_date = today - timedelta(days=7)
-    last30 = today - timedelta(days=30)
+    month_start = today.replace(day=1)
     sem_start = today.replace(month=(7 if today.month > 6 else 1), day=1)
     year_start = today.replace(month=1, day=1)
 
@@ -695,8 +714,8 @@ def top_products_view(request, period='mes'):
         date_filter = {'invoice__date__gte': week_date}
         title = "Productos Más Vendidos - Última Semana"
     elif period == 'mes':
-        date_filter = {'invoice__date__gte': last30}
-        title = "Productos Más Vendidos - Último Mes"
+        date_filter = {'invoice__date__gte': month_start}
+        title = "Productos Más Vendidos - Mes Actual"
     elif period == 'semestre':
         date_filter = {'invoice__date__gte': sem_start}
         title = "Productos Más Vendidos - Semestre Actual"
@@ -716,10 +735,10 @@ def top_products_view(request, period='mes'):
             total_sold=Sum('quantity'),
             total_revenue=Sum(F('quantity') * F('price'))
         )
-        .order_by('-total_sold')
+        .order_by('-total_revenue')
     )
 
-    total_sold_all = top_products.aggregate(Sum('total_sold'))['total_sold__sum'] or 0
+    total_revenue_all = top_products.aggregate(Sum('total_revenue'))['total_revenue__sum'] or 0
 
     class TopProduct:
         def __init__(self, pk, product_name, category_name,
@@ -734,8 +753,8 @@ def top_products_view(request, period='mes'):
 
     products_list = []
     for idx, item in enumerate(top_products, start=1):
-        percentage = (item['total_sold'] / total_sold_all * 100
-                      if total_sold_all > 0 else 0)
+        percentage = (item['total_revenue'] / total_revenue_all * 100
+                      if total_revenue_all > 0 else 0)
         product = TopProduct(
             pk=idx,
             product_name=item['product__name'],
@@ -747,7 +766,7 @@ def top_products_view(request, period='mes'):
         products_list.append(product)
 
     fields = ["Producto", "Categoría", "Cantidad Vendida",
-              "Ingresos Totales", "% del Total"]
+              "Ingresos Totales", "% por Ingresos"]
     columns = ["product_name", "category_name", "total_sold",
                "total_revenue", "percentage_display"]
 
