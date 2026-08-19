@@ -43,3 +43,9 @@ There is no lint/typecheck/formatter config in the repo. CI: none.
 ## Templates convention
 
 `stock/templatetags/getattribute.py` provides a `getattribute` filter used to dynamic-attribute access in the generic list/form templates — keep it in mind when adding fields to models that the generic templates render by name.
+
+## Documentation
+
+- Toda la documentación técnica del proyecto vive en `docs/`. El índice está en `docs/README.md` y cubre arquitectura, modelos, vistas/URLs, formularios, lógica de stock/costo, migraciones, import/export, autenticación, frontend y mantenimiento de docs.
+- `opencode.json` ya carga `docs/*.md` y `README.md` como instrucciones, así que el contenido de `docs/` forma parte del contexto de futuros agentes automáticamente.
+- **Regla obligatoria**: cualquier cambio de funcionalidad debe ir acompañado de la actualización de los archivos de `docs/` correspondientes. El checklist concreto está en `docs/mantenimiento.md`. Si el cambio toca `Purchase`/`Sale.save()|delete()`, **es obligatorio** actualizar `docs/logica-stock-costo.md`.
