@@ -66,6 +66,9 @@ se mantenga ordenado:
 4. **Layouts** (`/* === Layouts === */`): variantes de grid y separadores.
 5. **Componentes** (`/* === Componentes === */`): bloques reusables.
 6. **Grid.js** (`/* === Grid.js === */`): estilos para la integración con Pico.
+7. **Adaptación móvil** (`/* === Adaptación móvil === */`): navbar único
+   (hamburguesa + off-canvas) y reglas responsivas con breakpoint
+   en 768 px (tablas, formset como cards, tap targets 44 px).
 
 ## 5. Catálogo de clases
 
@@ -85,6 +88,12 @@ se mantenga ordenado:
 | `.stack-md` | `margin-bottom: 2rem` | `<header class="stack-md">…</header>` |
 | `.stack-lg` | `margin-bottom: 3rem` | `<header class="stack-lg">…</header>` |
 | `.flex-between` | Flex space-between + center | `<div class="flex-between">…</div>` |
+| `.d-flex` | `display: flex` | `<div class="d-flex">…</div>` |
+| `.flex-wrap` | `flex-wrap: wrap` | `<div class="d-flex flex-wrap">…</div>` |
+| `.gap-1` / `.gap-2` / `.gap-3` / `.gap-4` | `gap` de 0.25 / 0.5 / 0.75 / 1 rem | `<div class="d-flex gap-2">…</div>` |
+| `.m-0` | `margin: 0` | `<h1 class="m-0">…</h1>` |
+| `.mt-1` / `.mt-2` / `.mt-3` / `.mt-4` | `margin-top` de 0.25 / 0.5 / 0.75 / 1 rem | `<div class="mt-2">…</div>` |
+| `.icon--lg` | Icono Material grande con opacidad (3rem, opacity .3) | `<i class="material-icons icon--lg">image_not_supported</i>` |
 
 ### 5.2 Iconos
 
@@ -207,7 +216,101 @@ Las celdas numéricas deben llevar `.text-end` para alinearse a la derecha.
 
 <!-- Lista de fotos en product_form.html -->
 <img class="thumb-sm" src="..." alt="">
+
+<!-- Botón que contiene una miniatura (galería de producto) -->
+<button type="button" class="thumb-btn">
+  <img class="thumb-md" src="..." alt="Miniatura">
+</button>
 ```
+
+`.thumb-btn` resetea el estilo nativo del `<button>` (fondo, borde,
+padding) para que la miniatura sea el contenido visible. Se usa en
+`product_detail.html` en la galería de fotos.
+
+### 5.6 Adaptación móvil
+
+Todas las reglas responsivas viven en la sección `/* === Adaptación
+móvil === */` de `styles.css`. El breakpoint principal es **768 px**
+(alineado con Pico CSS v2).
+
+#### Breakpoints definidos
+
+| Breakpoint | Uso |
+|---|---|
+| `max-width: 767px` | Móvil/tablet vertical: hamburguesa, off-canvas, scroll horizontal en tablas, formset como cards, tap targets 44 px. |
+| `min-width: 768px` | Escritorio: anula las reglas móviles y deja el dropdown Pico normal, las tablas como tablas. |
+| `max-width: 480px` | Móvil pequeño: reduce paddings de `.container`, tamaños de `h1`/`h2` y de `.kpi-card__value`. |
+
+#### Botón hamburguesa
+
+`.nav-toggle` y `.nav-toggle__icon` — botón visible en todas las
+pantallas dentro del navbar (a la izquierda). Solo contiene el icono
+Material `menu`; al pulsarlo abre el panel `.nav-panel` (véase
+`templates/layout.html`). Los resets (`background: none`,
+`border: 0`, `padding` pequeño, `margin: 0`, `height/width: auto`)
+garantizan que en escritorio se vea como un enlace Pico limpio, no
+como un botón grande.
+
+#### Panel off-canvas (`.nav-panel`)
+
+`<aside id="nav-panel" class="nav-panel">` — panel lateral fijo,
+oculto por defecto (`display: none`). Se controla con el atributo
+HTML `hidden` (lo abre/cierra el JS mínimo de `layout.html`).
+
+- `position: fixed`, ancho fijo `320px` (máx `90vw`), altura `100dvh`.
+- En móvil cubre `80vw`; en escritorio se ve igual (siempre
+  superpuesto, con backdrop) porque el navbar es único.
+- Cabecera sticky (`.nav-panel__head`) con título "Menú" y botón
+  cerrar (`.nav-panel__close`).
+- Lista (`.nav-panel__list`) en columna vertical con secciones
+  (`.nav-panel__section`) y separadores (`.nav-panel__divider`).
+- Cada `<a>` tiene `min-height: 44px` y borde izquierdo de 3 px que
+  se ilumina con `:hover`/`:focus` usando `--primary`.
+
+#### Backdrop (`.nav-backdrop`)
+
+`<div class="nav-backdrop">` — fondo oscuro semitransparente
+(`rgba(0,0,0,0.4)`) que cubre la pantalla detrás del panel.
+`z-index: 99` (panel en `100`). También se controla con `hidden`.
+
+#### Tablas con scroll horizontal optimizado
+
+`.table-wrap` ya existía para dar `overflow-x: auto`. En móvil se
+refuerza con:
+
+- `scrollbar-width: thin` para barras finas.
+- Sombra lateral mediante `::after` que indica "hay más contenido →"
+  cuando la tabla se desborda.
+- `min-width: 480px` en la tabla interna para forzar el scroll en lugar
+  de comprimir las celdas.
+
+```html
+<div class="table-wrap">
+    <table class="table-stripped">
+        <!-- ... -->
+    </table>
+</div>
+```
+
+#### Formset de facturas como cards (móvil)
+
+`#items-table` se reescribe completamente en móvil (`max-width: 767px`):
+
+- `thead` oculto.
+- Cada `tr` se vuelve una tarjeta con borde y padding.
+- Cada `td` usa `display: flex` con `data-label` como etiqueta
+  (`<td data-label="Producto">…</td>`) y el contenido a la derecha.
+- El `tfoot` (total) se transforma en una caja fija al final con borde
+  reforzado.
+
+En escritorio, todo vuelve a la tabla 5 columnas normal. La
+transparencia la da AlpineJS, que ya calcula `grandTotal()`.
+
+#### Tap targets accesibles
+
+En `max-width: 767px`, todos los `button`, `a[role="button"]`,
+`input[type="submit"]` e `input[type="button"]` reciben
+`min-height: 44px` y `min-width: 44px` (WCAG 2.5.5).
 
 ### 5.5 Grid.js
 

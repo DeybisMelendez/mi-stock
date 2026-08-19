@@ -2,8 +2,8 @@
 {% block content %}
 <main class="container">
   <article>
-    <header style="display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap;">
-      <h1 style="margin:0;">{{ product.name }}</h1>
+    <header class="d-flex flex-wrap flex-between gap-3">
+      <h1 class="m-0">{{ product.name }}</h1>
       {% if product.active %}
         <span class="badge badge--ok" title="Producto disponible para la venta">
           <i class="material-icons">check_circle</i> Activo
@@ -29,8 +29,8 @@
             {% for image in product.images.all %}
               <button
                 type="button"
-                @click="active = '{{ image.image.url|escapejs }}'"
-                style="background:none; border:0; padding:0; cursor:pointer;">
+                class="thumb-btn"
+                @click="active = '{{ image.image.url|escapejs }}'">
                 <img
                   class="thumb-md"
                   src="{{ image.image.url }}"
@@ -43,28 +43,30 @@
 
           <details>
             <summary><small>Archivos ({{ product.images.count }})</small></summary>
-            <table class="table-stripped">
-              <thead>
-                <tr><th>Archivo</th><th>Subida</th><th></th></tr>
-              </thead>
-              <tbody>
-                {% for image in product.images.all %}
-                  <tr>
-                    <td><code>{{ image.image.name }}</code></td>
-                    <td>{{ image.created_at|date:"d/m/Y H:i" }}</td>
-                    <td class="text-end">
-                      <a href="{{ image.image.url }}" download="{{ image.image.name }}" role="button" class="secondary">
-                        <i class="material-icons">download</i>
-                      </a>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <div class="table-wrap">
+              <table class="table-stripped">
+                <thead>
+                  <tr><th>Archivo</th><th>Subida</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {% for image in product.images.all %}
+                    <tr>
+                      <td><code>{{ image.image.name }}</code></td>
+                      <td>{{ image.created_at|date:"d/m/Y H:i" }}</td>
+                      <td class="text-end">
+                        <a href="{{ image.image.url }}" download="{{ image.image.name }}" role="button" class="secondary">
+                          <i class="material-icons">download</i>
+                        </a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </details>
         {% else %}
           <div class="product-detail__hero product-detail__hero--empty">
-            <i class="material-icons" style="font-size:3rem; opacity:.3;">image_not_supported</i>
+            <i class="material-icons icon--lg">image_not_supported</i>
             <p class="muted"><em>Sin fotos.</em></p>
           </div>
         {% endif %}
@@ -197,7 +199,7 @@
       </div>
     </div>
 
-    <footer style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:1rem;">
+    <footer class="d-flex flex-wrap gap-2 mt-4">
       <a href="{{ list_url }}" role="button" class="secondary">
         <i class="material-icons">arrow_back</i> Volver
       </a>

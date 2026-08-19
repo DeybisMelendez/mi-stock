@@ -77,6 +77,55 @@
     align-items: center;
 }
 
+.d-flex {
+    display: flex;
+}
+
+.flex-wrap {
+    flex-wrap: wrap;
+}
+
+.gap-1 {
+    gap: 0.25rem;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.gap-3 {
+    gap: 0.75rem;
+}
+
+.gap-4 {
+    gap: 1rem;
+}
+
+.mt-1 {
+    margin-top: 0.25rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mt-3 {
+    margin-top: 0.75rem;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.m-0 {
+    margin: 0;
+}
+
+.icon--lg {
+    font-size: 3rem;
+    opacity: 0.3;
+}
+
 /* === Iconos =================================================
  * Reset para <i class="material-icons"> usado en la app.
  * .icon          → alineación y tamaño base.
@@ -284,6 +333,13 @@
     outline-offset: 2px;
 }
 
+.thumb-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
 /* --- Badges ------------------------------------------------- */
 .badge {
     display: inline-flex;
@@ -446,4 +502,269 @@
 
 .gridjs-table {
     width: 100%;
+}
+
+/* === Adaptación móvil =========================================
+ * El navbar es único para todas las pantallas: botón hamburguesa
+ * a la izquierda, enlace "Home" a la derecha, panel off-canvas
+ * que se abre en móvil/tablet (<= 1024 px) y como overlay modal
+ * en escritorio.
+ * ============================================================ */
+
+/* --- Botón hamburguesa (visible en todas las pantallas) ----- */
+.nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    padding: var(--ms-space-2) var(--ms-space-3);
+    cursor: pointer;
+    color: var(--pico-color);
+    margin: 0;
+    height: auto;
+    width: auto;
+}
+
+.nav-toggle__icon {
+    font-size: 1.5rem;
+}
+
+/* --- Panel off-canvas (oculto solo cuando lleva hidden) ----- */
+/* Mientras el atributo hidden esté presente, el panel está cerrado.
+   Cuando JS lo quita, las propiedades de posición y tamaño de
+   abajo aplican y el panel se muestra. */
+.nav-panel[hidden],
+.nav-backdrop[hidden] {
+    display: none;
+}
+
+/* El off-canvas en sí mismo solo tiene sentido en pantallas
+   estrechas. En escritorio lo abrimos igualmente, pero como panel
+   lateral fijo más ancho. */
+.nav-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto;
+    padding: 0;
+    border-right: var(--ms-border-strong);
+    box-shadow: 0 0 1rem rgba(0, 0, 0, 0.15);
+    background: var(--card-background-color, var(--pico-card-background-color));
+    z-index: 100;
+    flex-direction: column;
+    width: 320px;
+    max-width: 90vw;
+}
+
+.nav-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--ms-space-3) var(--ms-space-4);
+    border-bottom: var(--ms-border);
+    position: sticky;
+    top: 0;
+    background: var(--card-background-color, var(--pico-card-background-color));
+    z-index: 1;
+}
+
+.nav-panel__close {
+    background: none;
+    border: 0;
+    padding: var(--ms-space-1);
+    cursor: pointer;
+    color: var(--pico-color);
+    line-height: 1;
+    margin: 0;
+    width: auto;
+    height: auto;
+}
+
+.nav-panel__close .material-icons {
+    font-size: 1.5rem;
+}
+
+.nav-panel__list {
+    list-style: none;
+    margin: 0;
+    padding: var(--ms-space-2) 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-panel__list li a {
+    display: flex;
+    align-items: center;
+    padding: var(--ms-space-3) var(--ms-space-4);
+    color: var(--pico-color);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    min-height: 44px;
+}
+
+.nav-panel__list li a:hover,
+.nav-panel__list li a:focus {
+    background: var(--muted-background-color, var(--pico-muted-background-color, transparent));
+    border-left-color: var(--primary);
+}
+
+.nav-panel__section {
+    padding: var(--ms-space-3) var(--ms-space-4) var(--ms-space-1);
+    color: var(--muted-color);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    list-style: none;
+}
+
+.nav-panel__divider {
+    height: 1px;
+    background: var(--muted-border-color);
+    margin: var(--ms-space-2) var(--ms-space-4);
+    list-style: none;
+}
+
+.nav-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+}
+
+/* --- Tablas: scroll horizontal optimizado ------------------ */
+@media (max-width: 767px) {
+    .table-wrap {
+        position: relative;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .table-wrap::after {
+        content: "";
+        position: sticky;
+        top: 0;
+        right: 0;
+        width: 1.5rem;
+        height: 100%;
+        pointer-events: none;
+        background: linear-gradient(to left, var(--card-background-color, var(--pico-card-background-color)), transparent);
+    }
+
+    .table-wrap table {
+        min-width: 480px;
+    }
+}
+
+/* --- Formset de facturas: cards apiladas en móvil --------- */
+@media (max-width: 767px) {
+    #items-table,
+    #items-table thead,
+    #items-table tbody,
+    #items-table tfoot,
+    #items-table tr {
+        display: block;
+        width: 100%;
+    }
+
+    #items-table thead {
+        display: none;
+    }
+
+    #items-table tbody tr {
+        background: var(--card-background-color, var(--pico-card-background-color));
+        border: var(--ms-border);
+        border-radius: var(--ms-radius);
+        padding: var(--ms-space-3);
+        margin-bottom: var(--ms-space-3);
+    }
+
+    #items-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--ms-space-3);
+        padding: var(--ms-space-2) 0;
+        border-bottom: var(--ms-border);
+    }
+
+    #items-table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    #items-table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--muted-color);
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+    }
+
+    #items-table tbody td > select,
+    #items-table tbody td > input {
+        max-width: 60%;
+        flex: 1;
+    }
+
+    #items-table tfoot {
+        margin-top: var(--ms-space-3);
+        padding: var(--ms-space-3);
+        background: var(--card-background-color, var(--pico-card-background-color));
+        border: var(--ms-border-strong);
+        border-radius: var(--ms-radius);
+    }
+
+    #items-table tfoot tr {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #items-table tfoot th {
+        display: inline;
+        border: 0;
+    }
+}
+
+/* --- Tap targets accesibles (regla WCAG 2.5.5) ------------- */
+@media (max-width: 767px) {
+    button,
+    a[role="button"],
+    input[type="submit"],
+    input[type="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .nav-toggle,
+    .tabs-bar--buttons button {
+        min-height: 44px;
+    }
+}
+
+/* --- Tipografía y espaciado móvil -------------------------- */
+@media (max-width: 480px) {
+    main.container,
+    nav.container {
+        padding-left: var(--ms-space-3);
+        padding-right: var(--ms-space-3);
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.25rem;
+    }
+
+    .kpi-card__value {
+        font-size: 1.25rem;
+    }
 }

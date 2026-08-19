@@ -48,11 +48,16 @@ templates/
 ## Layout base (`layout.html`)
 
 Carga los CDN de Pico, Material Icons, AlpineJS y Grid.js. Contiene
-la barra de navegación:
+la barra de navegación única (misma en todas las pantallas):
 
-- Si `user.is_authenticated`: dropdown agrupado (Catálogo / Operaciones
-  / Reportes / Cuenta / Datos).
-- Si no: enlace "Iniciar sesión".
+- Si `user.is_authenticated`:
+  - Botón hamburguesa (`.nav-toggle`) a la **izquierda**.
+  - Enlace "Home" (que apunta a `home`) a la **derecha**.
+  - Al pulsar la hamburguesa se abre un panel off-canvas
+    (`<aside id="nav-panel">`) con backdrop, que contiene el menú
+    completo agrupado en 5 secciones (Catálogo / Operaciones /
+    Reportes / Cuenta / Datos).
+- Si no: enlace "Iniciar sesión" a la derecha.
 
 Debajo del `<nav>`:
 
@@ -61,7 +66,45 @@ Debajo del `<nav>`:
 {% block content %}{% endblock %}
 ```
 
-Y al final del `<body>` se cargan los scripts de Alpine y Grid.js.
+Y al final del `<body>` se cargan los scripts de Alpine y Grid.js
+más, si el usuario está autenticado, el JS mínimo que controla el
+panel off-canvas (abrir/cerrar `#nav-panel`, `.nav-backdrop`, tecla
+`Esc`).
+
+### Diseño responsive / móvil
+
+La app es **mobile-first** en su CSS. El breakpoint principal del
+proyecto es **768 px**:
+
+- **`< 768 px` (móvil/tablet vertical):**
+  - El panel off-canvas cubre `80vw` (máx 320 px) desde la izquierda.
+  - Las tablas (`month_result.html`, `list.html`, formset de facturas)
+    hacen scroll horizontal dentro de `.table-wrap` con sombra lateral
+    indicando "hay más →".
+  - El formset de `invoice_form.html` se renderiza como **cards
+    apiladas**: cada `<tr>` es una tarjeta con etiqueta (`data-label`)
+    arriba y el campo abajo. El total general queda en una caja fija
+    al final.
+  - Botones y enlaces con `role="button"` garantizan `min-height: 44px`
+    (regla WCAG 2.5.5 para tap targets).
+- **`≥ 768 px` (escritorio):**
+  - El panel ocupa `320px` desde la izquierda y se muestra
+    superpuesto al contenido (con backdrop) en lugar de empujarlo.
+  - Tablas se ven como tablas. Formset de facturas como tabla 5
+    columnas. Sin cambios visuales respecto al comportamiento previo.
+
+El navbar es único en todas las pantallas: hamburguesa a la izquierda
++ "Home" a la derecha. El menú completo solo vive en el panel
+off-canvas.
+
+> **Si añades un enlace al menú**, edita el `<ul class="nav-panel__list">`
+> en `templates/layout.html`.
+>
+> Si añades una tabla nueva, envuélvela en `<div class="table-wrap">`
+> para que herede el scroll horizontal optimizado en móvil.
+>
+> Si añades un formset con muchas columnas, pon `data-label` en cada
+> `<td>` para que el CSS móvil pueda convertir la tabla en cards.
 
 ## `list.html` — La lista más usada
 

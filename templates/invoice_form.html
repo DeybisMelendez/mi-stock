@@ -7,7 +7,7 @@
     {{ form.as_div }}
 
 <h2>Productos</h2>
-    <div class="overflow-auto" x-data="invoiceTable()" x-init="init()">
+    <div class="table-wrap" x-data="invoiceTable()" x-init="init()">
       <table id="items-table">
         <thead>
           <tr>
@@ -28,19 +28,19 @@
           {% for f in formset %}
           <tr class="item-row" data-idx="{{ forloop.counter0 }}"
               @input.debounce.50ms="syncRow($event)">
-            <td>{{ f.product }}</td>
-            <td>{{ f.quantity }}</td>
+            <td data-label="Producto">{{ f.product }}</td>
+            <td data-label="Cantidad">{{ f.quantity }}</td>
             {% if kind == 'purchase' %}
-              <td>{{ f.cost }}</td>
+              <td data-label="Costo">{{ f.cost }}</td>
             {% else %}
-              <td>
+              <td data-label="Precio">
                 <span class="muted" x-text="priceHint('items-{{ forloop.counter0 }}')"></span>
               </td>
             {% endif %}
-            <td>
+            <td data-label="Subtotal">
               <strong x-text="fmt(subtotal('items-{{ forloop.counter0 }}'))"></strong>
             </td>
-            <td>
+            <td data-label="Eliminar">
               {{ f.DELETE }}{{ f.id.as_hidden }}{{ f.invoice.as_hidden }}
             </td>
           </tr>
@@ -48,14 +48,14 @@
         </tbody>
         <tfoot>
           <tr>
-            <th colspan="3" style="text-align:right">Total</th>
+            <th colspan="3" class="text-end">Total</th>
             <th colspan="2">
               <strong x-text="fmt(grandTotal())"></strong>
             </th>
           </tr>
         </tfoot>
       </table>
-      <button type="button" id="add-item" @click="addRow()" style="margin-top:.5rem;">
+      <button type="button" id="add-item" @click="addRow()" class="mt-2">
         + Agregar línea
       </button>
     </div>
@@ -68,15 +68,15 @@
 <div id="empty-row-source" hidden>
   <table><tbody>
     <tr class="item-row">
-      <td>{{ formset.empty_form.product }}</td>
-      <td>{{ formset.empty_form.quantity }}</td>
+      <td data-label="Producto">{{ formset.empty_form.product }}</td>
+      <td data-label="Cantidad">{{ formset.empty_form.quantity }}</td>
       {% if kind == 'purchase' %}
-        <td>{{ formset.empty_form.cost }}</td>
+        <td data-label="Costo">{{ formset.empty_form.cost }}</td>
       {% else %}
-        <td><span class="muted" x-text="priceHint('__FORMKEY__')"></span></td>
+        <td data-label="Precio"><span class="muted" x-text="priceHint('__FORMKEY__')"></span></td>
       {% endif %}
-      <td><strong x-text="fmt(subtotal('__FORMKEY__'))"></strong></td>
-      <td>
+      <td data-label="Subtotal"><strong x-text="fmt(subtotal('__FORMKEY__'))"></strong></td>
+      <td data-label="Eliminar">
         {{ formset.empty_form.DELETE }}{{ formset.empty_form.id.as_hidden }}{{ formset.empty_form.invoice.as_hidden }}
       </td>
     </tr>
