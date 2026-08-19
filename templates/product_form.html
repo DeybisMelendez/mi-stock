@@ -23,8 +23,7 @@
             {{ f.image }}
             {{ f.id.as_hidden }}{{ f.product.as_hidden }}
             {% if f.instance.image %}
-              <br><img src="{{ f.instance.image.url }}" alt=""
-                        style="max-height: 64px; max-width: 64px; object-fit: cover;">
+              <br><img class="thumb-sm" src="{{ f.instance.image.url }}" alt="">
             {% endif %}
           </td>
           <td>{{ f.DELETE }}</td>
@@ -39,7 +38,7 @@
     <button type="submit">Guardar</button>
   </form>
 
-  <div id="empty-row-template" style="display:none;">
+  <div id="empty-row-template" class="hidden">
     <table><tbody>
       <tr class="item-row">
         <td>{{ formset.empty_form.image }}{{ formset.empty_form.id.as_hidden }}{{ formset.empty_form.product.as_hidden }}</td>

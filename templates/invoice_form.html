@@ -6,59 +6,187 @@
     {% csrf_token %}
     {{ form.as_div }}
 
-    <h2>Productos</h2>
-    <div class="table-wrap">
-    <table id="items-table">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Cantidad</th>
-          {% if kind == 'purchase' %}<th>Costo</th>{% endif %}
-          <th>Eliminar</th>
-        </tr>
-      </thead>
-      <tbody id="items-body">
-        {{ formset.management_form }}
-        {% for f in formset %}
-        <tr class="item-row">
-          <td>{{ f.product }}</td>
-          <td>{{ f.quantity }}</td>
-          {% if kind == 'purchase' %}<td>{{ f.cost }}</td>{% endif %}
-          <td>{{ f.DELETE }}{{ f.id.as_hidden }}{{ f.invoice.as_hidden }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<h2>Productos</h2>
+    <div class="overflow-auto" x-data="invoiceTable()" x-init="init()">
+      <table id="items-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            {% if kind == 'purchase' %}
+              <th>Costo</th>
+              <th>Subtotal</th>
+            {% else %}
+              <th>Precio</th>
+              <th>Subtotal</th>
+            {% endif %}
+            <th>Eliminar</th>
+          </tr>
+        </thead>
+        <tbody id="items-body">
+          {{ formset.management_form }}
+          {% for f in formset %}
+          <tr class="item-row" data-idx="{{ forloop.counter0 }}"
+              @input.debounce.50ms="syncRow($event)">
+            <td>{{ f.product }}</td>
+            <td>{{ f.quantity }}</td>
+            {% if kind == 'purchase' %}
+              <td>{{ f.cost }}</td>
+            {% else %}
+              <td>
+                <span class="muted" x-text="priceHint('items-{{ forloop.counter0 }}')"></span>
+              </td>
+            {% endif %}
+            <td>
+              <strong x-text="fmt(subtotal('items-{{ forloop.counter0 }}'))"></strong>
+            </td>
+            <td>
+              {{ f.DELETE }}{{ f.id.as_hidden }}{{ f.invoice.as_hidden }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" style="text-align:right">Total</th>
+            <th colspan="2">
+              <strong x-text="fmt(grandTotal())"></strong>
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+      <button type="button" id="add-item" @click="addRow()" style="margin-top:.5rem;">
+        + Agregar línea
+      </button>
     </div>
-    <button type="button" id="add-item" onclick="addItemRow()">+ Agregar línea</button>
 
     <hr>
     <button type="submit">Guardar</button>
   </form>
 </main>
 
-<div id="empty-row-template" style="display:none;">
+<div id="empty-row-source" hidden>
   <table><tbody>
     <tr class="item-row">
       <td>{{ formset.empty_form.product }}</td>
       <td>{{ formset.empty_form.quantity }}</td>
-      {% if kind == 'purchase' %}<td>{{ formset.empty_form.cost }}</td>{% endif %}
-      <td>{{ formset.empty_form.DELETE }}{{ formset.empty_form.id.as_hidden }}{{ formset.empty_form.invoice.as_hidden }}</td>
+      {% if kind == 'purchase' %}
+        <td>{{ formset.empty_form.cost }}</td>
+      {% else %}
+        <td><span class="muted" x-text="priceHint('__FORMKEY__')"></span></td>
+      {% endif %}
+      <td><strong x-text="fmt(subtotal('__FORMKEY__'))"></strong></td>
+      <td>
+        {{ formset.empty_form.DELETE }}{{ formset.empty_form.id.as_hidden }}{{ formset.empty_form.invoice.as_hidden }}
+      </td>
     </tr>
   </tbody></table>
 </div>
 
 <script>
-function addItemRow() {
-  const totalForms = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
-  const formCount = parseInt(totalForms.value, 10);
+  function invoiceTable() {
+    return {
+      kind: "{{ kind }}",
+      prices: JSON.parse('{{ product_prices_json|escapejs }}' || '{}'),
+      costs:  JSON.parse('{{ product_costs_json|default:"{}"|escapejs }}' || '{}'),
+      stocks: JSON.parse('{{ product_stocks_json|escapejs }}' || '{}'),
+      rows: {},
 
-  const sourceRow = document.querySelector('#empty-row-template tr');
-  const clone = sourceRow.cloneNode(true);
-  clone.innerHTML = clone.innerHTML.replace(/__prefix__/g, formCount);
-  document.getElementById('items-body').appendChild(clone);
+      init() {
+        this.reindexRows();
+        document.querySelectorAll('#items-body .item-row').forEach(row => {
+          this.snapshotRow(row);
+        });
+      },
 
-  totalForms.value = formCount + 1;
-}
+      rowKey(row) {
+        const sel = row.querySelector('[name$="-product"]');
+        return sel ? sel.name.replace(/-product$/, '') : null;
+      },
+
+      reindexRows() {
+        const next = {};
+        document.querySelectorAll('#items-body .item-row').forEach(row => {
+          const k = this.rowKey(row);
+          if (k) next[k] = this.rows[k] || { productId: 0, quantity: 0, cost: 0 };
+        });
+        this.rows = next;
+      },
+
+      snapshotRow(row) {
+        const k = this.rowKey(row);
+        if (!k) return;
+        const productSel = row.querySelector('[name$="-product"]');
+        const qtyInput   = row.querySelector('[name$="-quantity"]');
+        const costInput  = row.querySelector('[name$="-cost"]');
+        const productId  = productSel ? parseInt(productSel.value || '0', 10) : 0;
+        const quantity   = qtyInput   ? parseFloat(qtyInput.value || '0')    : 0;
+        const cost       = costInput  ? parseFloat(costInput.value || '0')   : 0;
+        this.rows[k] = { productId, quantity, cost };
+      },
+
+      syncRow(evt) {
+        const row = evt.target.closest('.item-row');
+        if (row) this.snapshotRow(row);
+      },
+
+      unitPrice(key) {
+        const r = this.rows[key];
+        if (!r || !r.productId) return 0;
+        return parseFloat(this.prices[r.productId] || 0);
+      },
+
+      unitCost(key) {
+        const r = this.rows[key];
+        if (!r || !r.productId) return 0;
+        return parseFloat(this.costs[r.productId] || 0);
+      },
+
+      priceHint(key) {
+        const r = this.rows[key];
+        if (!r || !r.productId) return 'Precio: —';
+        const p = parseFloat(this.prices[r.productId] || 0);
+        const s = this.stocks[r.productId];
+        const stockInfo = (s === undefined) ? '' : ` (stock: ${s})`;
+        return `Precio: C$ ${p.toFixed(2)}${stockInfo}`;
+      },
+
+      subtotal(key) {
+        const r = this.rows[key];
+        if (!r) return 0;
+        if (this.kind === 'purchase') return r.quantity * r.cost;
+        return r.quantity * this.unitPrice(key);
+      },
+
+      grandTotal() {
+        return Object.keys(this.rows)
+          .filter(k => !k.startsWith('__'))
+          .reduce((s, k) => s + this.subtotal(k), 0);
+      },
+
+      fmt(n) {
+        return 'C$ ' + (n || 0).toFixed(2);
+      },
+
+      addRow() {
+        const totalForms = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
+        const formCount  = parseInt(totalForms.value, 10);
+        const sourceRow  = document.querySelector('#empty-row-source tr');
+        if (!sourceRow) {
+          console.error('Empty row template not found');
+          return;
+        }
+        const clone = sourceRow.cloneNode(true);
+        const formKey = 'items-' + formCount;
+        clone.innerHTML = clone.innerHTML
+          .replace(/__FORMKEY__/g, formKey)
+          .replace(/__prefix__/g, formCount);
+        clone.addEventListener('input', () => this.snapshotRow(clone));
+        document.getElementById('items-body').appendChild(clone);
+        totalForms.value = formCount + 1;
+        this.snapshotRow(clone);
+      },
+    };
+  }
 </script>
 {% endblock %}

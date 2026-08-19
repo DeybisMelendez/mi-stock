@@ -23,7 +23,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = ["name", "category", "brand", "description",
-                  "stock", "price", "average_cost"]
+                  "stock", "price", "average_cost", "active"]
 
 
 # Formset para gestionar múltiples fotos de un producto
@@ -73,6 +73,10 @@ class PurchaseItemForm(forms.ModelForm):
         model = Purchase
         fields = ["product", "quantity", "cost"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["product"].queryset = Product.objects.filter(active=True)
+
 
 # ===== Facturas de venta =====
 class SaleInvoiceForm(forms.ModelForm):
@@ -88,3 +92,7 @@ class SaleItemForm(forms.ModelForm):
     class Meta:
         model = Sale
         fields = ["product", "quantity"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["product"].queryset = Product.objects.filter(active=True)

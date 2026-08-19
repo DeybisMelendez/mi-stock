@@ -28,6 +28,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     average_cost = models.DecimalField(
         max_digits=10, decimal_places=2, default=0)
+    active = models.BooleanField(default=True)
 
     def update_average_cost(self, added_quantity, added_cost):
         total_cost = (self.stock * self.average_cost) + \

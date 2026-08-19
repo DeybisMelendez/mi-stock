@@ -17,7 +17,7 @@ from .forms import (
     OtherIncomeCategoryForm, OtherIncomeForm,
 )
 from django.apps import apps
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Max
 from django.db.models.functions import TruncMonth
 from django.utils.timezone import now
 from datetime import timedelta, date
@@ -81,8 +81,6 @@ def generic_list_view(request, model_str):
         }
         return render(request, "list.html", context)
 
-    queryset = model.objects.all()
-
     fields = []
     columns = []
     title = ""
@@ -92,42 +90,86 @@ def generic_list_view(request, model_str):
             fields = ["Nombre"]
             columns = ["name"]
             title = "Categorías"
+            queryset = model.objects.all()
+            page_obj = queryset
 
         case "expensecategory":
             fields = ["Nombre"]
             columns = ["name"]
             title = "Categorías de Gastos"
+            queryset = model.objects.all()
+            page_obj = queryset
 
         case "otherincomecategory":
             fields = ["Nombre"]
             columns = ["name"]
             title = "Categorías de Otros Ingresos"
+            queryset = model.objects.all()
+            page_obj = queryset
 
         case "product":
+            tab = request.GET.get("tab", "active")
+            if tab not in ("active", "inactive"):
+                tab = "active"
+            active_qs = Product.objects.filter(active=True).select_related("category")
+            inactive_qs = Product.objects.filter(active=False).select_related("category")
             fields = ["Nombre", "Categoría", "Marca",
                       "Stock", "Precio", "Costo Promedio"]
             columns = ["name", "category__name", "brand",
                        "stock", "price", "average_cost"]
             title = "Productos"
 
+            def _serialize(qs):
+                rows = []
+                for p in qs:
+                    row = []
+                    for col in columns:
+                        val = p
+                        for part in col.split("__"):
+                            val = getattr(val, part, None) if val is not None else None
+                            if val is None:
+                                break
+                        if hasattr(val, "strftime"):
+                            val = val.strftime("%d/%m/%Y")
+                        row.append("" if val is None else str(val))
+                    edit_url   = reverse("product_edit",   args=[p.id])
+                    detail_url = reverse("product_detail", args=[p.id])
+                    row.append(f"{detail_url}|{edit_url}")
+                    rows.append(row)
+                return rows
+
+            return render(request, "list.html", {
+                "model": model_str,
+                "title": title,
+                "fields": fields,
+                "columns": columns,
+                "active_count": active_qs.count(),
+                "inactive_count": inactive_qs.count(),
+                "active_data_json": json.dumps(_serialize(active_qs)),
+                "inactive_data_json": json.dumps(_serialize(inactive_qs)),
+                "tab": tab,
+            })
+
         case "expense":
-            queryset = queryset.select_related("category")
+            queryset = model.objects.all().select_related("category")
             fields = ["Fecha", "Categoría", "Descripción", "Monto"]
             columns = ["date", "category__name", "description", "amount"]
             title = "Gastos"
+            page_obj = queryset
 
         case "otherincome":
-            queryset = queryset.select_related("category")
+            queryset = model.objects.all().select_related("category")
             fields = ["Fecha", "Categoría", "Descripción", "Monto"]
             columns = ["date", "category__name", "description", "amount"]
             title = "Otros Ingresos"
+            page_obj = queryset
 
     context = {
         "model": model_str,
         "title": title,
         "fields": fields,
         "columns": columns,
-        "page_obj": queryset,
+        "page_obj": page_obj,
     }
     return render(request, "list.html", context)
 
@@ -213,11 +255,37 @@ def product_form_view(request, pk=None):
 def product_detail_view(request, pk):
     """Vista de detalle de un producto con sus fotos descargables."""
     product = get_object_or_404(Product, pk=pk)
+
+    sales_stats = Sale.objects.filter(product=product).aggregate(
+        total_sold=Sum("quantity"),
+        total_revenue=Sum(F("quantity") * F("price")),
+        last_sale=Max("invoice__date"),
+    )
+    purchases_stats = Purchase.objects.filter(product=product).aggregate(
+        total_bought=Sum("quantity"),
+        total_spent=Sum(F("quantity") * F("cost")),
+        last_purchase=Max("invoice__date"),
+    )
+
+    unit_margin = (product.price - product.average_cost) if product.average_cost else 0
+    margin_pct = (
+        (unit_margin / product.price * 100) if product.price else 0
+    )
+
     context = {
         "title": f"{product.name}",
         "product": product,
         "edit_url": reverse("product_edit", args=[product.id]),
         "list_url": reverse("list", args=["product"]),
+        "inventory_value": product.stock * product.average_cost,
+        "unit_margin": unit_margin,
+        "margin_pct": margin_pct,
+        "total_sold": sales_stats["total_sold"] or 0,
+        "total_revenue": sales_stats["total_revenue"] or 0,
+        "last_sale": sales_stats["last_sale"],
+        "total_bought": purchases_stats["total_bought"] or 0,
+        "total_spent": purchases_stats["total_spent"] or 0,
+        "last_purchase": purchases_stats["last_purchase"],
     }
     return render(request, "product_detail.html", context)
 
@@ -256,6 +324,15 @@ def purchase_invoice_form_view(request, pk=None):
         "form": form,
         "formset": formset,
         "kind": "purchase",
+        "product_prices_json": json.dumps(
+            {p.id: str(p.price) for p in Product.objects.filter(active=True)}
+        ),
+        "product_costs_json": json.dumps(
+            {p.id: str(p.average_cost) for p in Product.objects.filter(active=True)}
+        ),
+        "product_stocks_json": json.dumps(
+            {p.id: p.stock for p in Product.objects.filter(active=True)}
+        ),
     }
     return render(request, "invoice_form.html", context)
 
@@ -283,6 +360,12 @@ def sale_invoice_form_view(request, pk=None):
         "form": form,
         "formset": formset,
         "kind": "sale",
+        "product_prices_json": json.dumps(
+            {p.id: str(p.price) for p in Product.objects.filter(active=True)}
+        ),
+        "product_stocks_json": json.dumps(
+            {p.id: p.stock for p in Product.objects.filter(active=True)}
+        ),
     }
     return render(request, "invoice_form.html", context)
 

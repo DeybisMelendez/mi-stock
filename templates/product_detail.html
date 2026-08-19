@@ -1,56 +1,210 @@
 {% extends "layout.html" %}
 {% block content %}
 <main class="container">
-  <h1>{{ product.name }}</h1>
+  <article>
+    <header style="display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap;">
+      <h1 style="margin:0;">{{ product.name }}</h1>
+      {% if product.active %}
+        <span class="badge badge--ok" title="Producto disponible para la venta">
+          <i class="material-icons">check_circle</i> Activo
+        </span>
+      {% else %}
+        <span class="badge badge--muted" title="Producto desactivado: no aparece en ventas ni compras nuevas">
+          <i class="material-icons">pause_circle</i> Inactivo
+        </span>
+      {% endif %}
+    </header>
 
-  <p><strong>Categoría:</strong> {{ product.category }}</p>
-  {% if product.brand %}<p><strong>Marca:</strong> {{ product.brand }}</p>{% endif %}
-  {% if product.description %}<p><strong>Descripción:</strong> {{ product.description }}</p>{% endif %}
-  <p><strong>Stock:</strong> {{ product.stock }}</p>
-  <p><strong>Precio:</strong> C$ {{ product.price }}</p>
-  <p><strong>Costo promedio:</strong> C$ {{ product.average_cost }}</p>
-  <p><strong>Valor en inventario:</strong> C$ {% widthratio product.stock 1 product.average_cost %}</p>
+    <div class="product-detail-layout">
+      <aside class="product-detail__media" x-data="{ active: '{{ product.images.first.image.url|default:"" }}' }">
+        {% if product.images.all %}
+          <div class="product-detail__hero">
+            <img
+              :src="active || '{{ product.images.first.image.url }}'"
+              :alt="'Foto de {{ product.name|escapejs }}'">
+          </div>
 
-  <h2>Fotos</h2>
-  {% if product.images.all %}
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Imagen</th>
-          <th>Archivo</th>
-          <th>Subida</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for image in product.images.all %}
-        <tr>
-          <td>
-            <a href="{{ image.image.url }}" target="_blank">
-              <img src="{{ image.image.url }}" alt="Foto de {{ product.name }}"
-                   style="max-height: 96px; max-width: 96px; object-fit: cover;">
-            </a>
-          </td>
-          <td>{{ image.image.name }}</td>
-          <td>{{ image.created_at|date:"d/m/Y H:i" }}</td>
-          <td>
-            <a href="{{ image.image.url }}" download="{{ image.image.name }}"
-               role="button" title="Descargar">
-              <i class="material-icons">download</i> Descargar
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <p>Este producto no tiene fotos.</p>
-  {% endif %}
+          {% if product.images.count > 1 %}
+          <div class="thumb-grid">
+            {% for image in product.images.all %}
+              <button
+                type="button"
+                @click="active = '{{ image.image.url|escapejs }}'"
+                style="background:none; border:0; padding:0; cursor:pointer;">
+                <img
+                  class="thumb-md"
+                  src="{{ image.image.url }}"
+                  alt="Miniatura"
+                  :class="{ 'thumb-md--active': active === '{{ image.image.url|escapejs }}' }">
+              </button>
+            {% endfor %}
+          </div>
+          {% endif %}
 
-  <hr>
-  <a href="{{ list_url }}" role="button"><i class="material-icons">arrow_back</i> Volver</a>
-  <a href="{{ edit_url }}" role="button"><i class="material-icons">edit</i> Editar</a>
+          <details>
+            <summary><small>Archivos ({{ product.images.count }})</small></summary>
+            <table class="table-stripped">
+              <thead>
+                <tr><th>Archivo</th><th>Subida</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for image in product.images.all %}
+                  <tr>
+                    <td><code>{{ image.image.name }}</code></td>
+                    <td>{{ image.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">
+                      <a href="{{ image.image.url }}" download="{{ image.image.name }}" role="button" class="secondary">
+                        <i class="material-icons">download</i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+        {% else %}
+          <div class="product-detail__hero product-detail__hero--empty">
+            <i class="material-icons" style="font-size:3rem; opacity:.3;">image_not_supported</i>
+            <p class="muted"><em>Sin fotos.</em></p>
+          </div>
+        {% endif %}
+      </aside>
+
+      <div class="product-detail__info">
+        <section class="info-card">
+          <h4 class="info-card__title">Información general</h4>
+          <dl class="info-list">
+            <div>
+              <dt>Categoría</dt>
+              <dd>{{ product.category }}</dd>
+            </div>
+            {% if product.brand %}
+            <div>
+              <dt>Marca</dt>
+              <dd>{{ product.brand }}</dd>
+            </div>
+            {% endif %}
+            <div>
+              <dt>Descripción</dt>
+              <dd>
+                {% if product.description %}
+                  {{ product.description|linebreaksbr }}
+                {% else %}
+                  <span class="muted"><em>Sin descripción.</em></span>
+                {% endif %}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="info-card">
+          <h4 class="info-card__title">Inventario</h4>
+          <dl class="info-list">
+            <div>
+              <dt>Stock actual</dt>
+              <dd>
+                <strong>{{ product.stock }}</strong> unidades
+              </dd>
+            </div>
+            <div>
+              <dt>Costo promedio</dt>
+              <dd>C$ {{ product.average_cost }}</dd>
+            </div>
+            <div>
+              <dt>Valor en inventario</dt>
+              <dd><strong>C$ {{ inventory_value }}</strong></dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="info-card">
+          <h4 class="info-card__title">Precio y margen</h4>
+          <dl class="info-list">
+            <div>
+              <dt>Precio de venta</dt>
+              <dd>C$ {{ product.price }}</dd>
+            </div>
+            {% if product.price %}
+            <div>
+              <dt>Ganancia por unidad</dt>
+              <dd>
+                <span class="{% if unit_margin < 0 %}text-error{% else %}text-success{% endif %}">
+                  C$ {{ unit_margin }}
+                </span>
+                <small class="muted">({{ margin_pct|floatformat:1 }}%)</small>
+              </dd>
+            </div>
+            {% if unit_margin < 0 %}
+            <div>
+              <dt></dt>
+              <dd>
+                <span class="badge badge--warn">
+                  <i class="material-icons">warning</i> Precio por debajo del costo
+                </span>
+              </dd>
+            </div>
+            {% endif %}
+            {% else %}
+            <div>
+              <dt></dt>
+              <dd class="muted"><em>Sin precio de venta definido.</em></dd>
+            </div>
+            {% endif %}
+          </dl>
+        </section>
+
+        <section class="info-card">
+          <h4 class="info-card__title">Historial</h4>
+          <div class="info-grid-2">
+            <dl class="info-list">
+              <dt class="info-list__subhead">Ventas</dt>
+              <div>
+                <dt>Unidades vendidas</dt>
+                <dd>{{ total_sold }}</dd>
+              </div>
+              <div>
+                <dt>Ingresos generados</dt>
+                <dd>C$ {{ total_revenue }}</dd>
+              </div>
+              <div>
+                <dt>Última venta</dt>
+                <dd>
+                  {% if last_sale %}{{ last_sale|date:"d/m/Y" }}
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </dd>
+              </div>
+            </dl>
+            <dl class="info-list">
+              <dt class="info-list__subhead">Compras</dt>
+              <div>
+                <dt>Unidades compradas</dt>
+                <dd>{{ total_bought }}</dd>
+              </div>
+              <div>
+                <dt>Inversión total</dt>
+                <dd>C$ {{ total_spent }}</dd>
+              </div>
+              <div>
+                <dt>Última compra</dt>
+                <dd>
+                  {% if last_purchase %}{{ last_purchase|date:"d/m/Y" }}
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <footer style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:1rem;">
+      <a href="{{ list_url }}" role="button" class="secondary">
+        <i class="material-icons">arrow_back</i> Volver
+      </a>
+      <a href="{{ edit_url }}" role="button">
+        <i class="material-icons">edit</i> Editar
+      </a>
+    </footer>
+  </article>
 </main>
 {% endblock %}
