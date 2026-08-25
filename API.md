@@ -121,7 +121,7 @@ Si el producto no existe, está inactivo o está agotado, se devuelve
 | `id` | número | Identificador del producto |
 | `name` | texto | Nombre |
 | `brand` | texto | Marca (vacío si no tiene) |
-| `description` | texto | Descripción (vacío o `null` si no tiene) |
+| `description` | texto | Descripción en **markdown plano** (vacío o `null` si no tiene). El consumidor es responsable de renderizarlo si lo desea. |
 | `price` | texto | Precio de venta en córdobas, con 2 decimales (p. ej. `"450.00"`) |
 | `category` | objeto | Categoría: `{id, name}` |
 | `images` | lista | URLs absolutas de las fotos (`[]` si no tiene) |

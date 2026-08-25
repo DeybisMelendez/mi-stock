@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% load getattribute %}
 {% block content %}
 <main class="container">
   <article>
@@ -90,7 +91,9 @@
               <dt>Descripción</dt>
               <dd>
                 {% if product.description %}
-                  {{ product.description|linebreaksbr }}
+                  <div class="product-description">
+                    {{ product.description|markdown_safe }}
+                  </div>
                 {% else %}
                   <span class="muted"><em>Sin descripción.</em></span>
                 {% endif %}

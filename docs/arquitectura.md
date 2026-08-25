@@ -94,6 +94,8 @@ para uso personal o pequeños negocios. Toda la lógica vive en una única app
 - **SQLite** como base de datos por defecto (configurada en
   `mistock/settings.py`)
 - **Pillow 11.x** para `ImageField` de `ProductImage`
+- **markdown** + **bleach** para renderizar la descripción markdown de
+  productos de forma segura (filtro `markdown_safe` en plantillas)
 - **python-dotenv** para cargar `.secret`
 - **django-cors-headers 4.x** para el CORS de la API pública
   (solo rutas `/api/...`, ver [`api.md`](api.md))

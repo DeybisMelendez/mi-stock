@@ -227,6 +227,20 @@ Las celdas numéricas deben llevar `.text-end` para alinearse a la derecha.
 padding) para que la miniatura sea el contenido visible. Se usa en
 `product_detail.html` en la galería de fotos.
 
+#### Descripción de producto (markdown)
+
+```html
+<div class="product-description">
+    {{ product.description|markdown_safe }}
+</div>
+```
+
+`.product-description` estiliza el HTML que genera el filtro
+`markdown_safe` (párrafos, listas, `<code>`, `<pre>`, `<blockquote>`,
+tablas, encabezados, enlaces, imágenes). Usa variables de Pico para
+heredar colores en temas claro/oscuro. Si añades otra zona donde se
+renderiza markdown, reutiliza esta misma clase.
+
 ### 5.6 Adaptación móvil
 
 Todas las reglas responsivas viven en la sección `/* === Adaptación

@@ -293,6 +293,30 @@ Es la versión "inteligente":
 Este filtro es el que usa `list.html` para renderizar celdas, por eso
 se carga con `{% load getattribute %}` al inicio del template.
 
+### `markdown_safe`
+
+```django
+{{ product.description|markdown_safe }}
+```
+
+Convierte un string markdown a HTML seguro para renderizar en plantillas.
+Implementación en `stock/templatetags/getattribute.py`:
+
+- Usa `markdown.markdown(..., extensions=["nl2br", "fenced_code", "tables"])`.
+  La extensión `nl2br` hace que un salto de línea simple se mantenga
+  visible (preserva descripciones que ya estaban escritas en texto plano).
+- Pasa el HTML resultante por `bleach.clean(...)` con una whitelist
+  cerrada de tags y atributos (ver `ALLOWED_TAGS` y `ALLOWED_ATTRIBUTES`
+  en el código). Esto evita XSS si la descripción proviene de fuentes
+  no controladas.
+- Devuelve cadena vacía si el valor es `None` o si ocurre algún error
+  de parseo (fallo silencioso, análogo a `getattribute`).
+
+Usado en `product_detail.html` (dentro de un contenedor
+`.product-description` para que los estilos CSS se apliquen al HTML
+generado). Si necesitas renderizar markdown en otro lugar, reutiliza
+este filtro en lugar de instalar otra cosa.
+
 ## Convenciones de los templates
 
 - **Sin `<style>`** dentro de ningún template. Todo el estilo va en

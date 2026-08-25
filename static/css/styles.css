@@ -475,6 +475,92 @@
     }
 }
 
+/* Descripción de producto (HTML saneado por el filtro markdown_safe). */
+.product-description {
+    line-height: 1.55;
+}
+
+.product-description > :first-child {
+    margin-top: 0;
+}
+
+.product-description > :last-child {
+    margin-bottom: 0;
+}
+
+.product-description p {
+    margin: 0 0 0.75rem;
+}
+
+.product-description ul,
+.product-description ol {
+    margin: 0 0 0.75rem;
+    padding-left: 1.5rem;
+}
+
+.product-description li {
+    margin-bottom: 0.25rem;
+}
+
+.product-description code {
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: var(--pico-muted-border-color, rgba(0, 0, 0, 0.08));
+    font-size: 0.9em;
+}
+
+.product-description pre {
+    margin: 0 0 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    background: var(--pico-muted-border-color, rgba(0, 0, 0, 0.08));
+}
+
+.product-description pre code {
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+}
+
+.product-description blockquote {
+    margin: 0 0 0.75rem;
+    padding: 0.25rem 0 0.25rem 1rem;
+    border-left: 3px solid var(--pico-muted-border-color);
+    color: var(--pico-muted-color);
+}
+
+.product-description table {
+    width: 100%;
+    margin: 0 0 0.75rem;
+    border-collapse: collapse;
+}
+
+.product-description th,
+.product-description td {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--pico-muted-border-color);
+    text-align: left;
+}
+
+.product-description h1,
+.product-description h2,
+.product-description h3,
+.product-description h4,
+.product-description h5,
+.product-description h6 {
+    margin: 1rem 0 0.5rem;
+}
+
+.product-description a {
+    word-break: break-word;
+}
+
+.product-description img {
+    max-width: 100%;
+    height: auto;
+}
+
 /* === Grid.js ================================================
  * Reglas para integrar Grid.js con los estilos de Pico.
  * Antes vivían en un <style> dentro de list.html.

@@ -74,6 +74,10 @@ Notas del formato:
 - **`price` es string** (p. ej. `"25.00"`). Es la serialización directa
   del `DecimalField`; evita problemas de precisión flotante en el
   consumidor.
+- **`description`** se envía como **markdown plano** (string sin
+  procesar). El consumidor es responsable de renderizarlo si lo desea.
+  La UI interna de Mi Stock lo renderiza con el filtro `markdown_safe`
+  (ver [`docs/frontend.md`](frontend.md)).
 - **`images`** es una lista de URLs **absolutas** (con esquema y host,
   construidas con `request.build_absolute_uri`). Si un producto no
   tiene fotos, es `[]`.
