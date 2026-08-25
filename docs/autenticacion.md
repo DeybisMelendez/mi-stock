@@ -59,9 +59,12 @@ def home(request):
     ...
 ```
 
-Si añades una vista nueva, **no olvides** el decorador. La excepción es
-cualquier vista que intencionalmente sea pública (en este proyecto no
-hay ninguna).
+Si añades una vista nueva, **no olvides** el decorador. La excepción
+es cualquier vista que intencionalmente sea pública. En este proyecto
+la única es la **API pública de productos** (`stock/api.py`): vistas
+`api_product_list` y `api_product_detail`, de solo lectura y sin
+datos sensibles (no exponen `average_cost` ni `stock`). Ver
+[`api.md`](api.md).
 
 ## Logout
 

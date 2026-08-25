@@ -132,6 +132,21 @@ agentes automáticamente.
 3. Si afecta a `views.py` (nuevo `@login_required`, vista pública),
    [`docs/vistas-y-urls.md`](vistas-y-urls.md).
 
+### Cambio en la API pública
+
+1. [`docs/api.md`](api.md) — actualizar endpoints, formato de
+   respuesta, campos o CORS.
+2. [`API.md`](../API.md) (raíz, junto al README) — es la guía para
+   **usuarios/consumidores** de la API; mantenerla sincronizada con
+   cualquier cambio de endpoints, campos o formato.
+3. Si se expone un campo nuevo de `Product`, añadirlo a la whitelist
+   de `_product_payload` en `stock/api.py` **y** verificar que no sea
+   información interna (`average_cost`, `stock`).
+4. Si cambia qué vistas son públicas, [`docs/autenticacion.md`](autenticacion.md)
+   y [`docs/vistas-y-urls.md`](vistas-y-urls.md).
+5. Si cambia el CORS (`settings.py`), [`docs/arquitectura.md`](arquitectura.md)
+   tabla de stack.
+
 ### Cambio en CSS / clase nueva
 
 1. [`docs/estilos.md`](estilos.md) — añadir al catálogo y documentar.

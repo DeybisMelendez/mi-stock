@@ -40,11 +40,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    "corsheaders",
     "stock"
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -134,3 +136,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Authentication
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+# CORS: solo para la API pública de productos (/api/...)
+# Sin Access-Control-Allow-Credentials, las cookies de sesión no viajan
+# cross-origin, así que el resto de la app queda protegida por login.
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_URLS_REGEX = r"^/api/.*$"

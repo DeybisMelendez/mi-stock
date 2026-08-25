@@ -21,6 +21,7 @@ debe reflejarse aquí (ver `docs/mantenimiento.md`).
 | [`migraciones.md`](migraciones.md) | Historial de migraciones y advertencias de rollback |
 | [`importar-exportar.md`](importar-exportar.md) | Formato JSON de respaldo y restauración |
 | [`autenticacion.md`](autenticacion.md) | Login, `@login_required`, redirecciones |
+| [`api.md`](api.md) | API pública de productos (solo lectura): endpoints, formato, CORS |
 | [`frontend.md`](frontend.md) | Templates, Pico+AlpineJS+Chart.js+Grid.js, convenciones |
 | [`estilos.md`](estilos.md) | Guía de CSS (BEM-light, tokens propios, anti-patrones) |
 | [`mantenimiento.md`](mantenimiento.md) | Checklist: qué doc actualizar ante cada tipo de cambio |
@@ -35,6 +36,7 @@ debe reflejarse aquí (ver `docs/mantenimiento.md`).
 │   ├── models.py         # Modelos del dominio
 │   ├── views.py          # Vistas + formsets inline
 │   ├── forms.py          # ModelForms
+│   ├── api.py            # API pública de productos (solo lectura)
 │   ├── urls.py           # Rutas
 │   ├── admin.py          # Registro en Django admin
 │   ├── templatetags/     # Filtros de plantilla (getattribute)

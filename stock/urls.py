@@ -1,9 +1,13 @@
 from django.urls import path, re_path
 from django.http import HttpResponseNotFound
 from . import views
+from . import api
 
 urlpatterns = [
     path("", views.home, name="home"),
+    # API pública de productos (solo lectura, sin login). Ver docs/api.md
+    path("api/products/", api.api_product_list, name="api_product_list"),
+    path("api/products/<int:pk>/", api.api_product_detail, name="api_product_detail"),
     path("favicon.ico", lambda request: HttpResponseNotFound()),
     path("top-productos/<str:period>/", views.top_products_view, name="top_products_period"),
     path("top-productos/", views.top_products_view, {"period": "mes"}, name="top_products"),

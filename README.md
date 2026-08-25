@@ -14,6 +14,7 @@
 - Cálculo de subtotales y totales
 - Cálculo de resultados mensuales automático
 - Estadísticas y gráficos sencillos
+- API pública de solo lectura para consultar productos disponibles (ver [`API.md`](API.md))
 - Interfaz sencilla para comenzar rápidamente
 
 ---

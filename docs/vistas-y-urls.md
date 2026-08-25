@@ -2,7 +2,9 @@
 
 Catálogo de vistas definidas en `stock/views.py` y su mapeo en
 `stock/urls.py`. Todas las vistas (salvo error 404 explícito) llevan
-`@login_required`.
+`@login_required`. **Excepción**: la API pública de productos
+(`stock/api.py`), que es de solo lectura y no requiere login — ver
+[`api.md`](api.md).
 
 ## Cómo se compone el routing
 
@@ -91,6 +93,8 @@ cómo serializar las filas.
 |---|---|---|---|
 | `/` | `home` | `home` | Dashboard con KPIs, gráficos y top productos |
 | `/favicon.ico` | — | lambda | Devuelve 404 (no hay favicon) |
+| `/api/products/` | `api_product_list` | `api_product_list` | API pública: lista de productos disponibles (ver [`api.md`](api.md)) |
+| `/api/products/<pk>/` | `api_product_detail` | `api_product_detail` | API pública: detalle de producto (ver [`api.md`](api.md)) |
 | `/top-productos/<period>/` | `top_products_period` | `top_products_view` | Top productos por período (ver abajo) |
 | `/top-productos/` | `top_products` | `top_products_view` | Top productos del mes (default `period="mes"`) |
 | `/<model_str>/` | `list` | `generic_list_view` | Lista genérica del modelo |
@@ -114,6 +118,19 @@ cómo serializar las filas.
 `model_str` válido para CRUD genérico: `category`, `product`, `sale`,
 `purchase`, `expense`, `expensecategory`, `otherincome`,
 `otherincomecategory`. Para formularios, ver lista arriba.
+
+---
+
+## API pública (sin login)
+
+Las vistas `api_product_list` y `api_product_detail` viven en
+`stock/api.py` (no en `views.py`), **no llevan `@login_required`** y
+usan `@require_GET` (cualquier otro método → 405). Devuelven JSON con
+el catálogo de productos disponibles (`active=True` y `stock > 0`),
+excluyendo `average_cost` y `stock` del payload.
+
+La referencia completa (formato, ejemplos, CORS) está en
+[`api.md`](api.md).
 
 ---
 

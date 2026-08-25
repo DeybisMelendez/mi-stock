@@ -53,6 +53,7 @@ para uso personal o pequeños negocios. Toda la lógica vive en una única app
 │   ├── models.py             # 10 modelos del dominio
 │   ├── views.py              # Vistas + PurchaseItemFormSet / SaleItemFormSet
 │   ├── forms.py              # ModelForms y formsets
+│   ├── api.py                # API pública de productos (solo lectura)
 │   ├── urls.py               # Rutas (con regex para CRUD genérico)
 │   ├── admin.py              # Registro en Django admin
 │   ├── apps.py
@@ -94,6 +95,8 @@ para uso personal o pequeños negocios. Toda la lógica vive en una única app
   `mistock/settings.py`)
 - **Pillow 11.x** para `ImageField` de `ProductImage`
 - **python-dotenv** para cargar `.secret`
+- **django-cors-headers 4.x** para el CORS de la API pública
+  (solo rutas `/api/...`, ver [`api.md`](api.md))
 
 No hay servidor de producción configurado: solo `runserver` para desarrollo.
 
@@ -165,6 +168,9 @@ Todas llevan `@login_required`. Hay dos estilos:
 Los formsets inline `PurchaseItemFormSet` y `SaleItemFormSet` se construyen
 aquí con `inlineformset_factory`, **no** en `forms.py`.
 
+> La **API pública** de productos no vive aquí: está en `stock/api.py`,
+> sin login y de solo lectura. Ver [`api.md`](api.md).
+
 ### 4. Modelos (`stock/models.py`)
 
 10 modelos del dominio. Lo más delicado es que `Purchase.save()`,
@@ -206,7 +212,9 @@ propios `--ms-*` que derivan de variables de Pico, sin `style=""` ni
 
 ## Lo que NO está en el proyecto
 
-- **Sin API REST** (todo HTML server-rendered).
+- **Sin API REST autenticada ni de escritura**: la única API es la
+  pública de productos, de solo lectura (ver [`api.md`](api.md)).
+  Todo lo demás es HTML server-rendered.
 - **Sin tareas asíncronas** (no hay Celery, no hay cron).
 - **Sin tests** (`tests.py` está vacío).
 - **Sin CI / lint / formatter** configurados.
