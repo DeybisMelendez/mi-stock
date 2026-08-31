@@ -63,6 +63,7 @@ Respuesta:
       "description": "Lámpara LED 3D",
       "price": "850.00",
       "category": {"id": 1, "name": "Lampara Led 3D"},
+      "tags": ["oferta", "nuevo"],
       "images": ["http://localhost:8000/media/product_images/foto1.jpg"]
     },
     {
@@ -72,6 +73,7 @@ Respuesta:
       "description": "",
       "price": "450.00",
       "category": {"id": 7, "name": "Cubo Mágico"},
+      "tags": [],
       "images": []
     }
   ]
@@ -101,6 +103,7 @@ Respuesta (mismo formato que los elementos de la lista):
   "description": "",
   "price": "450.00",
   "category": {"id": 7, "name": "Cubo Mágico"},
+  "tags": ["oferta"],
   "images": ["http://localhost:8000/media/product_images/63685.jpg"]
 }
 ```
@@ -124,6 +127,7 @@ Si el producto no existe, está inactivo o está agotado, se devuelve
 | `description` | texto | Descripción en **markdown plano** (vacío o `null` si no tiene). El consumidor es responsable de renderizarlo si lo desea. |
 | `price` | texto | Precio de venta en córdobas, con 2 decimales (p. ej. `"450.00"`) |
 | `category` | objeto | Categoría: `{id, name}` |
+| `tags` | lista | Nombres de las etiquetas asignadas al producto (`[]` si no tiene) |
 | `images` | lista | URLs absolutas de las fotos (`[]` si no tiene) |
 
 Notas:

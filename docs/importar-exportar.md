@@ -19,6 +19,7 @@ Todos los registros de los siguientes modelos, en este orden:
 ```python
 models_to_export = [
     "Category",
+    "Tag",
     "ExpenseCategory",
     "Product",
     "ProductImage",
@@ -44,11 +45,12 @@ models_to_export = [
 {
   "metadata": {
     "export_date": "2026-08-19T15:30:00",
-    "version": "1.2",
-    "model_count": 13
+    "version": "1.3",
+    "model_count": 14
   },
   "data": {
     "Category":       [ { "model": "stock.category", "pk": 1, "fields": { ... } }, ... ],
+    "Tag":            [ ... ],
     "ExpenseCategory":[ ... ],
     "Product":        [ ... ],
     "ProductImage":   [ ... ],

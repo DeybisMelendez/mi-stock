@@ -37,6 +37,7 @@ MODEL_NAME_MAP = {
     "expensecategory": "ExpenseCategory",
     "otherincome": "OtherIncome",
     "otherincomecategory": "OtherIncomeCategory",
+    "tag": "Tag",
 }
 ```
 
@@ -58,10 +59,10 @@ cómo serializar las filas.
 - `generic_list_view` admite:
   `category`, `product`, `sale`, `purchase`, `expense`,
   `expensecategory`, `otherincome`, `otherincomecategory`,
-  `customer`.
+  `customer`, `tag`.
 - `generic_form_view` admite:
   `category`, `expense`, `expensecategory`,
-  `otherincome`, `otherincomecategory`, `customer`.
+  `otherincome`, `otherincomecategory`, `customer`, `tag`.
 
 > **`product`, `purchase` y `sale` no entran al CRUD genérico de
 > formularios**: tienen vistas dedicadas con formularios más complejos
@@ -115,13 +116,16 @@ cómo serializar las filas.
 | `/resultados/` | `month_result` | `month_result` | Estado de resultados del mes actual |
 | `/reportes/ventas-por-departamento/` | `sales_by_department` | `sales_by_department` | Ventas agrupadas por departamento del cliente (mes actual) |
 | `/reportes/ventas-por-departamento/<period>/` | `sales_by_department_period` | `sales_by_department` | Ventas por departamento (períodos: `mes`, `semestre`, `año`, `total`) |
+| `/reportes/ventas-por-etiqueta/` | `sales_by_tag` | `sales_by_tag` | Ventas agrupadas por etiqueta del producto (mes actual) |
+| `/reportes/ventas-por-etiqueta/<period>/` | `sales_by_tag_period` | `sales_by_tag` | Ventas por etiqueta (períodos: `mes`, `semestre`, `año`, `total`) |
 | `/perfil/` | `user_profile` | `user_profile` | Perfil de usuario + logout |
 | `/exportar/` | `export_data` | `export_data` | Descargar backup JSON |
 | `/importar/` | `import_data` | `import_data` | Subir backup JSON |
 
 `model_str` válido para CRUD genérico: `category`, `product`, `sale`,
 `purchase`, `expense`, `expensecategory`, `otherincome`,
-`otherincomecategory`. Para formularios, ver lista arriba.
+`otherincomecategory`, `customer`, `tag`. Para formularios, ver lista
+arriba.
 
 ---
 
@@ -273,6 +277,43 @@ Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
 `list.html` con `show_actions=False`, sin acciones de edición.
 Devuelve columnas: `Departamento`, `Unidades Vendidas`, `Ingresos
 Totales`, `% por Ingresos`.
+
+### `sales_by_tag(request, period='mes')`
+
+Reporte que agrupa ventas (`Sale.quantity * Sale.price`) por
+`product__tags__name`. Permite ver qué etiquetas generan más
+ingresos. Excluye ventas cuyo producto no tenga ninguna etiqueta
+asignada (`product__tags__isnull=False`).
+
+> A diferencia de `sales_by_department`, este reporte **sí excluye**
+> ventas: las de productos sin etiqueta quedan fuera del agrupamiento
+> (no aparecen bajo "Sin etiqueta"). Esto es intencional: sin
+> etiqueta no hay forma útil de agruparlas.
+
+Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
+`list.html` con `show_actions=False`. Columnas: `Etiqueta`,
+`Unidades Vendidas`, `Ingresos Totales`, `% por Ingresos`.
+
+### Filtro `?tag=<id>` en `/product/` y `/sale/`
+
+Las listas de productos y ventas aceptan el parámetro `tag` (id de
+`Tag`). Si está presente y la etiqueta existe:
+
+- **`/product?tag=<id>`**: muestra solo productos que tengan esa
+  etiqueta (la columna "Etiquetas" sigue apareciendo, ahora más
+  relevante para identificar el grupo filtrado).
+- **`/sale?tag=<id>`**: muestra solo facturas que tengan al menos
+  una línea cuyo producto tenga esa etiqueta (`items__product__tags`).
+
+El template `list.html` muestra una barra con un selector de
+etiquetas arriba de la tabla cuando hay `available_tags` en el
+contexto. Si hay una etiqueta seleccionada, aparece un enlace "Limpiar
+filtro" junto al selector. En la lista de productos el selector
+convive con los tabs activos/inactivos (preserva el `?tab=...` al
+cambiar la etiqueta y viceversa).
+
+El filtro es opcional. Sin él, las listas muestran todos los
+registros (etiquetados o no).
 
 ### `user_profile(request)`
 

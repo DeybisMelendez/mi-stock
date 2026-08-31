@@ -5,12 +5,19 @@ from .models import (
     PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
     Department, Customer,
+    Tag,
 )
 
 
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
+        fields = ["name"]
+
+
+class TagForm(forms.ModelForm):
+    class Meta:
+        model = Tag
         fields = ["name"]
 
 
@@ -24,7 +31,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = ["name", "category", "brand", "description",
-                  "stock", "price", "average_cost", "active"]
+                  "stock", "price", "average_cost", "active", "tags"]
 
 
 # Formset para gestionar múltiples fotos de un producto

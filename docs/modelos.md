@@ -46,6 +46,24 @@ Categoría de productos. Tabla simple, sin lógica.
 
 - `__str__` → `self.name`
 
+## Tag
+
+Etiqueta libre para clasificar productos de forma transversal a las
+categorías (p. ej. "oferta", "nuevo", "importado"). Un producto puede
+tener varias etiquetas y una etiqueta puede aplicarse a muchos
+productos. Permite filtros, búsquedas y el reporte de ventas por
+etiqueta.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `name` | `CharField(max_length=50, unique=True)` | Nombre único lógico |
+
+- `Meta.ordering = ['name']`
+- `__str__` → `self.name`
+
+> El gestor CRUD vive bajo `/tag/` (CRUD genérico). Ver
+> [`docs/vistas-y-urls.md`](vistas-y-urls.md).
+
 ## ExpenseCategory
 
 Categoría para gastos operativos.
@@ -72,6 +90,7 @@ los mantienen `Purchase` y `Sale`.
 | `price` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | Precio de venta |
 | `average_cost` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | **Mantenido por `Purchase`** (costo promedio ponderado) |
 | `active` | `BooleanField(default=True)` | Soft-delete. Productos inactivos no aparecen en facturas nuevas. Ver migración `0010_product_active`. |
+| `tags` | `ManyToManyField(Tag, blank=True, related_name="products")` | Etiquetas libres. Un producto puede tener varias (o ninguna). Ver migración `0014`. |
 
 ### Métodos
 

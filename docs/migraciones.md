@@ -22,6 +22,7 @@ gestiona Django.
 | 0011 | `0011_department_sow_nicaragua.py` | Crea `Department` y siembra los 17 territorios de Nicaragua (15 deptos + 2 regiones autónomas) |
 | 0012 | `0012_customer_saleinvoice_customer_obj.py` | Crea `Customer`; añade FK opcional `customer_obj` a `SaleInvoice`; backfill desde `SaleInvoice.customer` por nombre único |
 | 0013 | `0013_remove_saleinvoice_customer.py` | Reshape: crea `Cliente Genérico`, asigna `customer_obj` a todas las facturas (incluidas las que eran "Generic"), hace la FK obligatoria y elimina el campo de texto `customer` |
+| 0014 | `0014_tag_product_tags.py` | Crea el modelo `Tag` y añade el M2M `Product.tags`. No toca datos existentes (los productos quedan sin etiquetas por defecto) |
 
 ## ⚠️ Bloque 0004–0006: NO son reversibles sobre datos reales
 

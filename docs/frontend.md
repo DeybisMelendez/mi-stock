@@ -119,6 +119,25 @@ Sirve para casi todos los modelos. Tiene dos ramas:
 - La paginación de Grid.js es 25 por página, con búsqueda.
 - Los iconos de orden se reemplazan por Material Icons vía callback
   `sort.icon`.
+- La columna "Etiquetas" se renderiza con un caso especial en
+  `_serialize`: se hace `p.tags.all()` y se concatenan los nombres con
+  `, `. El resto de columnas mantiene el recorrido `__`.
+
+### Barra de filtro por etiqueta
+
+Las listas de productos y ventas muestran, justo después del botón
+"Nuevo", una barra con un selector de etiquetas cuando la vista pasa
+`available_tags` en el contexto (ver
+[`vistas-y-urls.md`](vistas-y-urls.md#filtro-tagid-en-product-y-sale)).
+
+- Si no hay etiqueta seleccionada: dropdown con "— Todas —" y todas
+  las etiquetas. Al cambiar, el form hace submit vía AlpineJS
+  (`@change="$event.target.form.submit()"`).
+- Si hay etiqueta seleccionada (parámetro `?tag=<id>`): aparece un
+  enlace "Limpiar filtro" junto al selector.
+- En `/product`, el form lleva un `<input type="hidden" name="tab">`
+  con binding a `tab` (AlpineJS) para preservar el tab activo al
+  cambiar de etiqueta.
 
 ### Rama genérica
 

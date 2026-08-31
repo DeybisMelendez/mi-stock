@@ -4,11 +4,13 @@ from .models import (
     Expense, PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
     Department, Customer,
+    Tag,
 )
 
 admin.site.register(Category)
 admin.site.register(ExpenseCategory)
 admin.site.register(OtherIncomeCategory)
+admin.site.register(Tag)
 
 
 @admin.register(Department)
@@ -37,7 +39,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ("name", "category", "brand", "stock",
                     "average_cost", "price", "active")
     search_fields = ("name", "category", "description", "brand")
-    list_filter = ("category", "active")
+    list_filter = ("category", "active", "tags")
+    filter_horizontal = ("tags",)
     ordering = ("name",)
     inlines = [ProductImageInline]
 

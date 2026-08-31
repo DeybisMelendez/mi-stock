@@ -9,6 +9,7 @@ from .models import (
     PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
     Department, Customer,
+    Tag,
 )
 from .forms import (
     CategoryForm, ExpenseCategoryForm, ProductForm, ExpenseForm,
@@ -17,6 +18,7 @@ from .forms import (
     ProductImageFormSet,
     OtherIncomeCategoryForm, OtherIncomeForm,
     CustomerForm,
+    TagForm,
 )
 from django.apps import apps
 from django.db.models import Sum, F, Max
@@ -35,6 +37,7 @@ MODEL_NAME_MAP = {
     "expensecategory": "ExpenseCategory",
     "otherincome": "OtherIncome",
     "otherincomecategory": "OtherIncomeCategory",
+    "tag": "Tag",
 }
 
 
@@ -42,7 +45,7 @@ MODEL_NAME_MAP = {
 def generic_list_view(request, model_str):
     valid_models = {"category", "product", "sale", "purchase", "expense",
                     "expensecategory", "otherincome", "otherincomecategory",
-                    "customer"}
+                    "customer", "tag"}
     if model_str not in valid_models:
         raise Http404
 
@@ -54,7 +57,13 @@ def generic_list_view(request, model_str):
 
     # Compras y ventas usan facturas con varias líneas
     if model_str in ("purchase", "sale"):
+        tag_id = request.GET.get("tag")
+        selected_tag = None
+        if tag_id and tag_id.isdigit():
+            selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
         invoices = model.objects.select_related("customer_obj").all()
+        if selected_tag:
+            invoices = invoices.filter(items__product__tags=selected_tag).distinct()
         rows = []
         for inv in invoices:
             rows.append({
@@ -75,12 +84,16 @@ def generic_list_view(request, model_str):
             fields = ["Fecha", "Cliente", "Productos", "Total"]
             columns = ["date", "party", "items_summary", "total"]
             title = "Ventas"
+        available_tags = list(Tag.objects.all().values("id", "name"))
         context = {
             "model": model_str,
             "title": title,
             "fields": fields,
             "columns": columns,
             "page_obj": rows,
+            "available_tags": available_tags,
+            "selected_tag": selected_tag,
+            "tag_filter_url_key": "tag",
         }
         return render(request, "list.html", context)
 
@@ -114,12 +127,20 @@ def generic_list_view(request, model_str):
             tab = request.GET.get("tab", "active")
             if tab not in ("active", "inactive"):
                 tab = "active"
-            active_qs = Product.objects.filter(active=True).select_related("category")
-            inactive_qs = Product.objects.filter(active=False).select_related("category")
+            tag_id = request.GET.get("tag")
+            selected_tag = None
+            if tag_id and tag_id.isdigit():
+                selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
+
+            active_qs = Product.objects.filter(active=True).select_related("category").prefetch_related("tags")
+            inactive_qs = Product.objects.filter(active=False).select_related("category").prefetch_related("tags")
+            if selected_tag:
+                active_qs = active_qs.filter(tags=selected_tag)
+                inactive_qs = inactive_qs.filter(tags=selected_tag)
             fields = ["Nombre", "Categoría", "Marca",
-                      "Stock", "Precio", "Costo Promedio"]
+                      "Etiquetas", "Stock", "Precio", "Costo Promedio"]
             columns = ["name", "category__name", "brand",
-                       "stock", "price", "average_cost"]
+                       "tags", "stock", "price", "average_cost"]
             title = "Productos"
 
             def _serialize(qs):
@@ -127,6 +148,11 @@ def generic_list_view(request, model_str):
                 for p in qs:
                     row = []
                     for col in columns:
+                        if col == "tags":
+                            row.append(", ".join(
+                                t.name for t in p.tags.all()
+                            ))
+                            continue
                         val = p
                         for part in col.split("__"):
                             val = getattr(val, part, None) if val is not None else None
@@ -141,6 +167,8 @@ def generic_list_view(request, model_str):
                     rows.append(row)
                 return rows
 
+            available_tags = list(Tag.objects.all().values("id", "name"))
+
             return render(request, "list.html", {
                 "model": model_str,
                 "title": title,
@@ -151,6 +179,9 @@ def generic_list_view(request, model_str):
                 "active_data_json": json.dumps(_serialize(active_qs)),
                 "inactive_data_json": json.dumps(_serialize(inactive_qs)),
                 "tab": tab,
+                "available_tags": available_tags,
+                "selected_tag": selected_tag,
+                "tag_filter_url_key": "tag",
             })
 
         case "expense":
@@ -174,6 +205,13 @@ def generic_list_view(request, model_str):
             title = "Clientes"
             page_obj = queryset
 
+        case "tag":
+            queryset = model.objects.all()
+            fields = ["Nombre"]
+            columns = ["name"]
+            title = "Etiquetas"
+            page_obj = queryset
+
     context = {
         "model": model_str,
         "title": title,
@@ -187,7 +225,7 @@ def generic_list_view(request, model_str):
 @login_required
 def generic_form_view(request, model_str, pk=None):
     valid_models = {"category", "expense", "expensecategory",
-                    "otherincome", "otherincomecategory", "customer"}
+                    "otherincome", "otherincomecategory", "customer", "tag"}
     if model_str not in valid_models:
         raise Http404
 
@@ -219,6 +257,9 @@ def generic_form_view(request, model_str, pk=None):
         case "customer":
             form_class = CustomerForm
             title += "Cliente"
+        case "tag":
+            form_class = TagForm
+            title += "Etiqueta"
 
     if request.method == "POST":
         form = form_class(request.POST, instance=obj)
@@ -742,7 +783,7 @@ def export_data(request):
     from datetime import datetime
 
     models_to_export = [
-        "Category", "ExpenseCategory", "Product", "ProductImage",
+        "Category", "Tag", "ExpenseCategory", "Product", "ProductImage",
         "Department", "Customer",
         "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
         "OtherIncomeCategory", "OtherIncome",
@@ -750,7 +791,7 @@ def export_data(request):
     data = {
         "metadata": {
             "export_date": datetime.now().isoformat(),
-            "version": "1.2",
+            "version": "1.3",
             "model_count": len(models_to_export),
         },
         "data": {}
@@ -783,7 +824,7 @@ def import_data(request):
 
         # Importar en orden para respetar dependencias
         models_order = [
-            "Category", "ExpenseCategory", "Product", "ProductImage",
+            "Category", "Tag", "ExpenseCategory", "Product", "ProductImage",
             "Department", "Customer",
             "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
             "OtherIncomeCategory", "OtherIncome",
@@ -958,6 +999,79 @@ def sales_by_department(request, period='mes'):
     return render(request, "list.html", {
         "title": title,
         "model": "department",
+        "fields": fields,
+        "columns": columns,
+        "page_obj": items,
+        "show_actions": False,
+    })
+
+
+@login_required
+def sales_by_tag(request, period='mes'):
+    """Ventas agrupadas por etiqueta del producto."""
+    today = now().date()
+    month_start = today.replace(day=1)
+    sem_start = today.replace(month=(7 if today.month > 6 else 1), day=1)
+    year_start = today.replace(month=1, day=1)
+
+    if period == 'mes':
+        date_filter = {'invoice__date__gte': month_start}
+        title = "Ventas por Etiqueta - Mes Actual"
+    elif period == 'semestre':
+        date_filter = {'invoice__date__gte': sem_start}
+        title = "Ventas por Etiqueta - Semestre Actual"
+    elif period == 'año':
+        date_filter = {'invoice__date__gte': year_start}
+        title = "Ventas por Etiqueta - Año Actual"
+    elif period == 'total':
+        date_filter = {}
+        title = "Ventas por Etiqueta - Total Histórico"
+    else:
+        raise Http404("Período no válido")
+
+    rows = (
+        Sale.objects.filter(**date_filter, product__tags__isnull=False)
+        .values("product__tags__id", "product__tags__name")
+        .annotate(
+            total_sold=Sum("quantity"),
+            total_revenue=Sum(F("quantity") * F("price")),
+        )
+        .order_by("-total_revenue")
+    )
+
+    total_revenue_all = sum(r["total_revenue"] or 0 for r in rows)
+
+    class TagRow:
+        def __init__(self, idx, tag_id, tag_name, total_sold, total_revenue, percentage):
+            self.id = idx
+            self.tag_id = tag_id
+            self.tag_name = tag_name or "Sin etiqueta"
+            self.total_sold = total_sold
+            self.total_revenue = total_revenue
+            self.percentage = percentage
+            self.percentage_display = f"{percentage:.2f}%"
+
+    items = []
+    for idx, item in enumerate(rows, start=1):
+        percentage = (
+            (item["total_revenue"] / total_revenue_all * 100)
+            if total_revenue_all else 0
+        )
+        items.append(TagRow(
+            idx,
+            item["product__tags__id"],
+            item["product__tags__name"],
+            item["total_sold"],
+            item["total_revenue"],
+            percentage,
+        ))
+
+    fields = ["Etiqueta", "Unidades Vendidas", "Ingresos Totales", "% por Ingresos"]
+    columns = ["tag_name", "total_sold", "total_revenue", "percentage_display"]
+
+    return render(request, "list.html", {
+        "title": title,
+        "model": "tag",
         "fields": fields,
         "columns": columns,
         "page_obj": items,

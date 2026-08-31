@@ -20,6 +20,27 @@
   <a href="{% url 'new' model %}" role="button"><i class="material-icons">add</i> Nuevo</a>
   {% endif %}
   {% endif %}
+
+  {% if available_tags %}
+  <div class="tag-filter-bar">
+    <form method="get" action="" class="tag-filter-form">
+      {% if model == 'product' %}<input type="hidden" name="tab" :value="tab">{% endif %}
+      <label for="tag-filter" class="muted">Filtrar por etiqueta:</label>
+      <select name="{{ tag_filter_url_key|default:'tag' }}" id="tag-filter"
+              @change="$event.target.form.submit()">
+        <option value="">— Todas —</option>
+        {% for t in available_tags %}
+        <option value="{{ t.id }}" {% if selected_tag and selected_tag.id == t.id %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+      {% if selected_tag %}
+      <a href="{% if model == 'product' %}?{% if request.GET.tab %}tab={{ request.GET.tab }}{% endif %}{% else %}?{% endif %}"
+         class="text-small"><i class="material-icons">close</i> Limpiar filtro</a>
+      {% endif %}
+    </form>
+  </div>
+  {% endif %}
+
   <hr>
 
   {% if model == 'product' %}

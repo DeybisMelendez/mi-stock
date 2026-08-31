@@ -28,6 +28,7 @@ def _product_payload(product, request):
             "id": product.category_id,
             "name": product.category.name,
         },
+        "tags": [tag.name for tag in product.tags.all()],
         "images": [
             request.build_absolute_uri(image.image.url)
             for image in product.images.all()
@@ -41,7 +42,7 @@ def _available_products():
         Product.objects
         .filter(active=True, stock__gt=0)
         .select_related("category")
-        .prefetch_related("images")
+        .prefetch_related("images", "tags")
     )
 
 

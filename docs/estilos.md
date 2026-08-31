@@ -241,6 +241,24 @@ tablas, encabezados, enlaces, imágenes). Usa variables de Pico para
 heredar colores en temas claro/oscuro. Si añades otra zona donde se
 renderiza markdown, reutiliza esta misma clase.
 
+#### Barra de filtro por etiqueta
+
+```html
+<div class="tag-filter-bar">
+    <form method="get" action="" class="tag-filter-form">
+        <label for="tag-filter" class="muted">Filtrar por etiqueta:</label>
+        <select name="tag" id="tag-filter">…</select>
+        <a href="?">Limpiar filtro</a>
+    </form>
+</div>
+```
+
+`.tag-filter-bar` es una caja con fondo y borde redondeado que
+aparece en las listas de productos y ventas. `.tag-filter-form` es
+`flex` con `gap` y `flex-wrap`, de modo que en móvil el selector y el
+enlace se acomodan en líneas separadas. Ver
+[`frontend.md`](frontend.md#barra-de-filtro-por-etiqueta).
+
 ### 5.6 Adaptación móvil
 
 Todas las reglas responsivas viven en la sección `/* === Adaptación

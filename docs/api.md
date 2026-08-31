@@ -52,6 +52,7 @@ Lista (`GET /api/products/`):
       "description": "Bebida gaseosa",
       "price": "25.00",
       "category": {"id": 2, "name": "Bebidas"},
+      "tags": ["oferta", "nuevo"],
       "images": ["http://localhost:8000/media/product_images/foto1.jpg"]
     },
     {
@@ -61,6 +62,7 @@ Lista (`GET /api/products/`):
       "description": "",
       "price": "350.00",
       "category": {"id": 3, "name": "Accesorios"},
+      "tags": [],
       "images": []
     }
   ]
@@ -82,6 +84,9 @@ Notas del formato:
   construidas con `request.build_absolute_uri`). Si un producto no
   tiene fotos, es `[]`.
 - **`category`** es un objeto `{id, name}`.
+- **`tags`** es una lista de strings (nombres de etiqueta). Si un
+  producto no tiene etiquetas, es `[]`. Lista ordenada por el
+  `Meta.ordering` de `Tag` (`name`).
 - No hay paginación: el catálogo es pequeño y la respuesta completa
   es la solución más simple.
 - Orden: el `Meta.ordering` de `Product` (`name`, `category__name`).

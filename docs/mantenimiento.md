@@ -69,6 +69,25 @@ agentes automáticamente.
 7. Añadir entrada en este checklist si creas un nuevo patrón
    recurrente.
 
+### Nuevo filtro por etiqueta en una lista
+
+Para añadir el filtro `?tag=<id>` en una lista gestionada por
+`generic_list_view`:
+
+1. En el `case` correspondiente de `generic_list_view`, leer
+   `tag_id = request.GET.get("tag")`, buscar `Tag` por id, y aplicar
+   `queryset = queryset.filter(tags=selected_tag)` (o el filtro
+   equivalente si la lista es de facturas).
+2. Si la vista no tiene ya en el contexto `available_tags`,
+   `selected_tag` y `tag_filter_url_key`, añadirlos al `render`.
+3. Si el serializador es especial (caso `product`), añade el caso
+   M2M para la columna `tags`.
+4. El template `list.html` ya renderiza la barra de filtro cuando
+   `available_tags` está presente — no requiere cambios.
+5. Documentar en [`docs/vistas-y-urls.md`](vistas-y-urls.md) bajo
+   "Filtro `?tag=<id>`" y, si la columna de etiquetas se ve, en
+   [`docs/frontend.md`](frontend.md#barra-de-filtro-por-etiqueta).
+
 ### Cambio en `Purchase.save()` / `Purchase.delete()` / `Sale.save()` / `Sale.delete()`
 
 > **Cambio crítico**. Actualizar **obligatoriamente** y con detalle:

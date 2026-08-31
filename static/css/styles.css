@@ -561,6 +561,33 @@
     height: auto;
 }
 
+/* --- Barra de filtro por etiqueta --------------------------- */
+.tag-filter-bar {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--card-background-color);
+    border: var(--ms-border);
+    border-radius: var(--ms-radius);
+}
+
+.tag-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.tag-filter-form select {
+    margin: 0;
+    min-width: 180px;
+}
+
+.tag-filter-form a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 /* === Grid.js ================================================
  * Reglas para integrar Grid.js con los estilos de Pico.
  * Antes vivían en un <style> dentro de list.html.
