@@ -19,6 +19,9 @@ gestiona Django.
 | 0008 | `0008_truncate_dates_to_date.py` | Convierte `invoice.date` de `DateTimeField` a `DateField` (truncando la hora) |
 | 0009 | `0009_otherincomecategory_otherincome.py` | Crea `OtherIncomeCategory` y `OtherIncome` |
 | 0010 | `0010_product_active.py` | Añade `Product.active` (BooleanField, default `True`) — soft-delete |
+| 0011 | `0011_department_sow_nicaragua.py` | Crea `Department` y siembra los 17 territorios de Nicaragua (15 deptos + 2 regiones autónomas) |
+| 0012 | `0012_customer_saleinvoice_customer_obj.py` | Crea `Customer`; añade FK opcional `customer_obj` a `SaleInvoice`; backfill desde `SaleInvoice.customer` por nombre único |
+| 0013 | `0013_remove_saleinvoice_customer.py` | Reshape: crea `Cliente Genérico`, asigna `customer_obj` a todas las facturas (incluidas las que eran "Generic"), hace la FK obligatoria y elimina el campo de texto `customer` |
 
 ## ⚠️ Bloque 0004–0006: NO son reversibles sobre datos reales
 
@@ -52,6 +55,77 @@ python manage.py migrate  # reaplica 0004+ sobre la base restaurada si aplica
   `DateTimeField` a `DateField`. La parte de hora de los datos
   existentes se trunca. Si necesitas mantener horas, revisa el código
   de la migración antes de aplicarla sobre datos reales.
+
+## ⚠️ Bloque 0012: backfill de clientes a partir de texto
+
+La migración `0012_customer_saleinvoice_customer_obj.py` realiza una
+**migración de datos**: crea `Customer` y rellena la nueva FK
+`SaleInvoice.customer_obj` haciendo `get_or_create(name=...)` por cada
+valor único distinto de `SaleInvoice.customer`, excluyendo valores
+vacíos y `"Generic"`.
+
+### Por qué no es totalmente reversible
+
+- La operación `RunPython` tiene `reverse_code` que **sí** pone todas
+  las FK a `NULL` (es decir, la migración puede revertirse en cuanto al
+  esquema), pero los `Customer` creados por el backfill **no se
+  eliminan** automáticamente. Si reviertes y luego vuelves a aplicar,
+  los clientes existentes se reusan (`get_or_create`), pero los nombres
+  que se hubieran editado manualmente a posteriori podrían quedar
+  desincronizados.
+
+### Qué hacer si necesitas volver atrás
+
+1. Restaura el backup previo: `cp db.bak-precustomers.sqlite3 db.sqlite3`
+   (o un backup más reciente).
+2. `python manage.py migrate` (reaplica 0011+ sobre la base
+   restaurada).
+
+Es un reshape **más liviano** que 0004–0006 porque solo añade campos y
+rellena FKs, pero conviene tratarlo con la misma precaución.
+
+## ⚠️ Bloque 0013: FK obligatoria y eliminación del campo texto
+
+La migración `0013_remove_saleinvoice_customer.py` realiza otro paso
+del reshape: consolida el modelo de cliente en una **única FK
+obligatoria**, eliminando el campo de texto `customer` que convivía
+con `customer_obj`.
+
+### Qué hace exactamente
+
+1. **RunPython hacia adelante** — `backfill_customer_obj_required`:
+   - Garantiza que existe un `Customer` llamado "Cliente Genérico"
+     (lo crea si no existe).
+   - Para cada factura con `customer_obj IS NULL`:
+     - Si `customer` tenía valor distinto de vacío/Generic → crea o
+       reutiliza un `Customer` con ese nombre y lo asigna.
+     - Si estaba vacío o era "Generic" → asigna el `Cliente
+       Genérico`.
+2. **AlterField** — convierte `customer_obj` en `NOT NULL` con
+   `on_delete=PROTECT`.
+3. **RemoveField** — borra el campo `customer` (CharField).
+
+### Por qué no es totalmente reversible
+
+- El `RunPython` tiene `reverse_code` que pone `customer_obj = NULL`
+  para las facturas del "Cliente Genérico", pero **no restaura el
+  campo `customer` con un valor derivado** (porque ya fue borrado por
+  `RemoveField`).
+- `RemoveField` sí es reversible (recupera el campo como varchar
+  vacío), pero los datos originales del campo texto se han perdido.
+- Si el usuario renombró manualmente un Customer entre 0012 y 0013,
+  al revertir se perderá ese nombre personalizado.
+
+### Qué hacer si necesitas volver atrás
+
+1. Restaura el backup previo: `cp db.bak-prefkobligatoria.sqlite3
+   db.sqlite3` (o un backup más reciente).
+2. `python manage.py migrate` (reaplica 0013 sobre la base
+   restaurada).
+
+Es un reshape más pesado que 0012 porque **elimina un campo** y
+cambia la nulabilidad. Tratarlo con la misma precaución que
+0004–0006.
 
 ## Buenas prácticas al migrar
 

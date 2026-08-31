@@ -22,14 +22,19 @@ Category  ──1:N──▶ Product ──1:N──▶ ProductImage
                           └──1:N──▶ Sale ──N:1──▶ SaleInvoice
                                        (items reverse)
                                             │
-                                            └─ customer, date
+                                            ├─ date
+                                            └─ customer_obj ──N:1──▶ Customer
+                                                                       │
+                                                                       └─ department ──N:1──▶ Department
 
 ExpenseCategory ──1:N──▶ Expense
 OtherIncomeCategory ──1:N──▶ OtherIncome
 ```
 
 `Product` es el nodo central. Las facturas (`PurchaseInvoice`, `SaleInvoice`)
-agrupan sus líneas (`Purchase`, `Sale`).
+agrupan sus líneas (`Purchase`, `Sale`). Los clientes (`Customer`)
+pertenecen opcionalmente a un `Department` de Nicaragua y se vinculan
+opcionalmente a ventas.
 
 ## Category
 
@@ -144,7 +149,7 @@ cliente.
 |---|---|---|
 | `created_at` | `DateTimeField(auto_now_add=True)` | |
 | `date` | `DateField(default=timezone.now)` | Fecha del documento |
-| `customer` | `CharField(max_length=200, default="Generic")` | Cliente |
+| `customer_obj` | `ForeignKey(Customer, on_delete=PROTECT, related_name="invoices")` | Cliente (obligatorio). Borrar un cliente con facturas asociadas lanza `ProtectedError` |
 
 ### Métodos
 
@@ -219,6 +224,50 @@ Ingreso no proveniente de venta.
 - `__str__` → `"C$ {amount} - {description}"`
 - `Meta.ordering = ['-date', '-created_at']`
 
+## Department
+
+Departamento (o región autónoma) de Nicaragua. Catálogo fijo de 17
+territorios (15 departamentos + 2 regiones autónomas) que se siembra en
+la migración `0011_department_sow_nicaragua`.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `name` | `CharField(max_length=50, unique=True)` | Nombre oficial |
+| `code` | `CharField(max_length=3, unique=True)` | Sigla corta (`MAN`, `MAS`, `RACCN`, `RACCS`...) |
+
+- `Meta.ordering = ['name']`
+- `__str__` → `self.name`
+
+> La gestión CRUD se hace desde el admin de Django. La tabla no está
+> pensada para editar desde la UI pública (la lista de territorios es
+> estable).
+
+## Customer
+
+Cliente del negocio. Permite registrar datos de contacto y demográficos
+útiles para análisis y reportes. **Se vincula opcionalmente** a una
+factura de venta mediante `SaleInvoice.customer_obj`.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `name` | `CharField(max_length=200)` | Nombre del cliente (obligatorio) |
+| `whatsapp` | `CharField(max_length=20, blank=True)` | No WhatsApp (con prefijo internacional, p. ej. `+505 8888 8888`) |
+| `address` | `CharField(max_length=300, blank=True)` | Dirección física |
+| `department` | `ForeignKey(Department, on_delete=SET_NULL, null=True, blank=True)` | Departamento de Nicaragua; borrar depto no borra clientes |
+| `notes` | `TextField(blank=True, null=True)` | Comentarios libres |
+| `active` | `BooleanField(default=True)` | Soft-delete. Los inactivos no aparecen como opción en ventas nuevas |
+| `created_at` | `DateTimeField(auto_now_add=True)` | Sirve para KPI "Clientes nuevos del mes" del dashboard |
+
+- `Meta.ordering = ['name']`
+- `__str__` → `self.name`
+
+> **Vinculación con ventas**: `SaleInvoice.customer_obj` es la única
+> vía de asociación con el cliente. La migración `0013` eliminó el
+> campo de texto `customer` que existía antes; las facturas con
+> `customer='Generic'` o vacío quedaron asignadas a un
+> `Customer` llamado "Cliente Genérico" que actúa como
+> marcador de posición para ventas sin cliente identificado.
+
 ## Resumen de comportamiento `on_delete`
 
 | Relación | `on_delete` | Efecto |
@@ -231,6 +280,8 @@ Ingreso no proveniente de venta.
 | `Sale.product → Product` | `CASCADE` | Borrar producto borra ventas |
 | `Expense.category → ExpenseCategory` | `SET_NULL` | Borrar categoría deja el gasto huérfano (sin categoría) |
 | `OtherIncome.category → OtherIncomeCategory` | `SET_NULL` | Igual |
+| `SaleInvoice.customer_obj → Customer` | `PROTECT` | Borrar cliente con facturas asociadas lanza `ProtectedError` (preserva historial) |
+| `Customer.department → Department` | `SET_NULL` | Borrar departamento deja el cliente sin depto |
 
 > **Advertencia**: como `Purchase` y `Sale` tienen `CASCADE` desde sus
 > facturas, y al borrar ejecutan `delete()` que revierte stock, **borrar

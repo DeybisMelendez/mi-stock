@@ -3,11 +3,27 @@ from .models import (
     Category, ExpenseCategory, Product, ProductImage, Purchase, Sale,
     Expense, PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
+    Department, Customer,
 )
 
 admin.site.register(Category)
 admin.site.register(ExpenseCategory)
 admin.site.register(OtherIncomeCategory)
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ("name", "code")
+    search_fields = ("name", "code")
+    ordering = ("name",)
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ("name", "whatsapp", "department", "active", "created_at")
+    search_fields = ("name", "whatsapp", "address")
+    list_filter = ("department", "active")
+    ordering = ("name",)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -56,8 +72,8 @@ class SaleInline(admin.TabularInline):
 
 @admin.register(SaleInvoice)
 class SaleInvoiceAdmin(admin.ModelAdmin):
-    list_display = ("date", "customer", "created_at")
-    list_filter = ("date", "customer")
+    list_display = ("date", "customer_obj", "created_at")
+    list_filter = ("date", "customer_obj")
     date_hierarchy = "date"
     ordering = ("-date",)
     inlines = [SaleInline]

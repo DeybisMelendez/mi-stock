@@ -14,6 +14,7 @@ para las fotos de productos. **Los formsets de líneas de factura
 | `ProductForm` | `Product` | `name`, `category`, `brand`, `description`, `stock`, `price`, `average_cost`, `active` |
 | `ExpenseForm` | `Expense` | `date`, `category`, `amount`, `description` |
 | `OtherIncomeForm` | `OtherIncome` | `date`, `category`, `amount`, `description` |
+| `CustomerForm` | `Customer` | `name`, `whatsapp`, `address`, `department`, `notes`, `active` |
 
 Los forms de fecha (`ExpenseForm`, `OtherIncomeForm`) usan un widget HTML5:
 
@@ -55,7 +56,28 @@ solo la cabecera:
 | Form | Modelo | Campos | Widget |
 |---|---|---|---|
 | `PurchaseInvoiceForm` | `PurchaseInvoice` | `date`, `supplier` | `date` como `type="date"` |
-| `SaleInvoiceForm` | `SaleInvoice` | `date`, `customer` | `date` como `type="date"` |
+| `SaleInvoiceForm` | `SaleInvoice` | `date`, `customer_obj` | `date` como `type="date"` |
+
+`SaleInvoiceForm` tiene solo `customer_obj` (FK a `Customer`, obligatorio)
+y limita el queryset a clientes activos. No hay campo de texto libre
+para cliente: si el cliente no está registrado, hay que crearlo desde
+el CRUD de clientes (enlazado desde el formulario de venta).
+
+### `CustomerForm`
+
+```python
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = ["name", "whatsapp", "address", "department", "notes", "active"]
+        widgets = {
+            "whatsapp": forms.TextInput(attrs={"type": "tel", "placeholder": "+505 8888 8888"}),
+        }
+```
+
+Se usa en el CRUD genérico (`generic_form_view` con `model_str="customer"`).
+No tiene validación rígida del whatsapp (Nicaragua usa `+505` + 8 dígitos,
+pero no queremos romper entradas con prefijos de otros países).
 
 ### `PurchaseItemForm`
 

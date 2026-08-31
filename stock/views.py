@@ -8,6 +8,7 @@ from .models import (
     Purchase, Sale, Expense,
     PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
+    Department, Customer,
 )
 from .forms import (
     CategoryForm, ExpenseCategoryForm, ProductForm, ExpenseForm,
@@ -15,6 +16,7 @@ from .forms import (
     SaleInvoiceForm, SaleItemForm,
     ProductImageFormSet,
     OtherIncomeCategoryForm, OtherIncomeForm,
+    CustomerForm,
 )
 from django.apps import apps
 from django.db.models import Sum, F, Max
@@ -39,7 +41,8 @@ MODEL_NAME_MAP = {
 @login_required
 def generic_list_view(request, model_str):
     valid_models = {"category", "product", "sale", "purchase", "expense",
-                    "expensecategory", "otherincome", "otherincomecategory"}
+                    "expensecategory", "otherincome", "otherincomecategory",
+                    "customer"}
     if model_str not in valid_models:
         raise Http404
 
@@ -51,13 +54,13 @@ def generic_list_view(request, model_str):
 
     # Compras y ventas usan facturas con varias líneas
     if model_str in ("purchase", "sale"):
-        invoices = model.objects.all()
+        invoices = model.objects.select_related("customer_obj").all()
         rows = []
         for inv in invoices:
             rows.append({
                 "id": inv.id,
                 "date": inv.date,
-                "party": inv.supplier if model_str == "purchase" else inv.customer,
+                "party": inv.supplier if model_str == "purchase" else inv.customer_obj.name,
                 "items_summary": ", ".join(
                     f"{i.quantity} × {i.product.name}"
                     for i in inv.items.all()
@@ -164,6 +167,13 @@ def generic_list_view(request, model_str):
             title = "Otros Ingresos"
             page_obj = queryset
 
+        case "customer":
+            queryset = model.objects.all().select_related("department")
+            fields = ["Nombre", "WhatsApp", "Departamento", "Activo"]
+            columns = ["name", "whatsapp", "department__name", "active"]
+            title = "Clientes"
+            page_obj = queryset
+
     context = {
         "model": model_str,
         "title": title,
@@ -177,7 +187,7 @@ def generic_list_view(request, model_str):
 @login_required
 def generic_form_view(request, model_str, pk=None):
     valid_models = {"category", "expense", "expensecategory",
-                    "otherincome", "otherincomecategory"}
+                    "otherincome", "otherincomecategory", "customer"}
     if model_str not in valid_models:
         raise Http404
 
@@ -206,6 +216,9 @@ def generic_form_view(request, model_str, pk=None):
         case "otherincome":
             form_class = OtherIncomeForm
             title += "Otro Ingreso"
+        case "customer":
+            form_class = CustomerForm
+            title += "Cliente"
 
     if request.method == "POST":
         form = form_class(request.POST, instance=obj)
@@ -394,7 +407,7 @@ def sale_invoice_detail_view(request, pk):
         "title": f"Factura de Venta #{invoice.id}",
         "invoice": invoice,
         "party_label": "Cliente",
-        "party": invoice.customer,
+        "party": invoice.customer_obj.name,
         "kind": "sale",
         "edit_url": reverse("sale_invoice_edit", args=[invoice.id]),
         "list_url": reverse("list", args=["sale"]),
@@ -476,6 +489,16 @@ def home(request):
         date__range=[month_start, today_date]
     ).aggregate(total=Sum("amount"))["total"] or 0
 
+    # ===== CLIENTES NUEVOS DEL MES =====
+    new_customers_this_month = Customer.objects.filter(
+        created_at__year=month_start.year,
+        created_at__month=month_start.month,
+    ).count()
+    new_customers_last_month = Customer.objects.filter(
+        created_at__year=prev_month_start.year,
+        created_at__month=prev_month_start.month,
+    ).count()
+
     # ===== GANANCIA DEL MES =====
     gross_profit_month = income_this_month - cost_this_month
     net_profit_month = (
@@ -552,6 +575,10 @@ def home(request):
         "other_income_this_month": other_income_this_month,
         "expenses_this_month": expenses_this_month,
         "expenses_growth": growth_percentage(expenses_this_month, expenses_last_month),
+
+        "new_customers_this_month": new_customers_this_month,
+        "new_customers_last_month": new_customers_last_month,
+        "new_customers_growth": growth_percentage(new_customers_this_month, new_customers_last_month),
 
         "inventory_value": inventory_value,
         "low_stock": low_stock,
@@ -716,13 +743,14 @@ def export_data(request):
 
     models_to_export = [
         "Category", "ExpenseCategory", "Product", "ProductImage",
+        "Department", "Customer",
         "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
         "OtherIncomeCategory", "OtherIncome",
     ]
     data = {
         "metadata": {
             "export_date": datetime.now().isoformat(),
-            "version": "1.1",
+            "version": "1.2",
             "model_count": len(models_to_export),
         },
         "data": {}
@@ -756,6 +784,7 @@ def import_data(request):
         # Importar en orden para respetar dependencias
         models_order = [
             "Category", "ExpenseCategory", "Product", "ProductImage",
+            "Department", "Customer",
             "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
             "OtherIncomeCategory", "OtherIncome",
         ]
@@ -863,3 +892,74 @@ def top_products_view(request, period='mes'):
     }
 
     return render(request, 'list.html', context)
+
+
+@login_required
+def sales_by_department(request, period='mes'):
+    """Ventas agrupadas por departamento del cliente."""
+    today = now().date()
+    month_start = today.replace(day=1)
+    sem_start = today.replace(month=(7 if today.month > 6 else 1), day=1)
+    year_start = today.replace(month=1, day=1)
+
+    if period == 'mes':
+        date_filter = {'invoice__date__gte': month_start}
+        title = "Ventas por Departamento - Mes Actual"
+    elif period == 'semestre':
+        date_filter = {'invoice__date__gte': sem_start}
+        title = "Ventas por Departamento - Semestre Actual"
+    elif period == 'año':
+        date_filter = {'invoice__date__gte': year_start}
+        title = "Ventas por Departamento - Año Actual"
+    elif period == 'total':
+        date_filter = {}
+        title = "Ventas por Departamento - Total Histórico"
+    else:
+        raise Http404("Período no válido")
+
+    rows = (
+        Sale.objects.filter(**date_filter, invoice__customer_obj__isnull=False)
+        .values("invoice__customer_obj__department__name")
+        .annotate(
+            total_sold=Sum("quantity"),
+            total_revenue=Sum(F("quantity") * F("price")),
+        )
+        .order_by("-total_revenue")
+    )
+
+    total_revenue_all = sum(r["total_revenue"] or 0 for r in rows)
+
+    class DeptRow:
+        def __init__(self, idx, department_name, total_sold, total_revenue, percentage):
+            self.id = idx
+            self.department_name = department_name or "Sin departamento"
+            self.total_sold = total_sold
+            self.total_revenue = total_revenue
+            self.percentage = percentage
+            self.percentage_display = f"{percentage:.2f}%"
+
+    items = []
+    for idx, item in enumerate(rows, start=1):
+        percentage = (
+            (item["total_revenue"] / total_revenue_all * 100)
+            if total_revenue_all else 0
+        )
+        items.append(DeptRow(
+            idx,
+            item["invoice__customer_obj__department__name"],
+            item["total_sold"],
+            item["total_revenue"],
+            percentage,
+        ))
+
+    fields = ["Departamento", "Unidades Vendidas", "Ingresos Totales", "% por Ingresos"]
+    columns = ["department_name", "total_sold", "total_revenue", "percentage_display"]
+
+    return render(request, "list.html", {
+        "title": title,
+        "model": "department",
+        "fields": fields,
+        "columns": columns,
+        "page_obj": items,
+        "show_actions": False,
+    })

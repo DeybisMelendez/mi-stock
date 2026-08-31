@@ -168,6 +168,12 @@ Sirve para casi todos los modelos. Tiene dos ramas:
 La más interactiva. Renderiza:
 
 - Cabecera de la factura (`PurchaseInvoiceForm` o `SaleInvoiceForm`).
+- **Enlace a cliente nuevo** (solo ventas): bloque discreto con un
+  enlace "Registrar nuevo cliente" que abre el CRUD en pestaña nueva.
+  El selector `customer_obj` se renderiza dentro de `{{ form.as_div }}`
+  por ser un campo normal del modelo. No hay campo de texto libre:
+  el cliente debe estar registrado (la migración `0013` consolidó
+  la FK como única vía).
 - Tabla de líneas con el formset inline.
 - AlpineJS calcula subtotales por línea y total general en vivo,
   leyendo:

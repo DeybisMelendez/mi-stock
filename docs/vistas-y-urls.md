@@ -41,7 +41,8 @@ MODEL_NAME_MAP = {
 ```
 
 Si `model_str` no está en el mapa, se usa `model_str.capitalize()`
-(`"category"` → `Category`, `"expense"` → `Expense`, etc.).
+(`"category"` → `Category`, `"expense"` → `Expense`, `"customer"` →
+`Customer`, etc.).
 
 La vista hace:
 
@@ -56,10 +57,11 @@ cómo serializar las filas.
 
 - `generic_list_view` admite:
   `category`, `product`, `sale`, `purchase`, `expense`,
-  `expensecategory`, `otherincome`, `otherincomecategory`.
+  `expensecategory`, `otherincome`, `otherincomecategory`,
+  `customer`.
 - `generic_form_view` admite:
   `category`, `expense`, `expensecategory`,
-  `otherincome`, `otherincomecategory`.
+  `otherincome`, `otherincomecategory`, `customer`.
 
 > **`product`, `purchase` y `sale` no entran al CRUD genérico de
 > formularios**: tienen vistas dedicadas con formularios más complejos
@@ -111,6 +113,8 @@ cómo serializar las filas.
 | `/ventas/<pk>/` | `sale_invoice_detail` | `sale_invoice_detail_view` | Ver factura de venta |
 | `/resultados/<offset>/` | `month_result` | `month_result` | Estado de resultados del mes (0 = actual) |
 | `/resultados/` | `month_result` | `month_result` | Estado de resultados del mes actual |
+| `/reportes/ventas-por-departamento/` | `sales_by_department` | `sales_by_department` | Ventas agrupadas por departamento del cliente (mes actual) |
+| `/reportes/ventas-por-departamento/<period>/` | `sales_by_department_period` | `sales_by_department` | Ventas por departamento (períodos: `mes`, `semestre`, `año`, `total`) |
 | `/perfil/` | `user_profile` | `user_profile` | Perfil de usuario + logout |
 | `/exportar/` | `export_data` | `export_data` | Descargar backup JSON |
 | `/importar/` | `import_data` | `import_data` | Subir backup JSON |
@@ -147,6 +151,8 @@ Calcula y devuelve al template `home.html`:
 - **Costos** del mes (suma de `quantity * cost`).
 - **Gastos del mes** (suma de `Expense.amount`).
 - **Otros ingresos del mes** (suma de `OtherIncome.amount`).
+- **Clientes nuevos del mes** (cuenta de `Customer` con
+  `created_at` en el mes en curso, más el crecimiento vs mes anterior).
 - **Ganancia bruta** = ingresos − costos.
 - **Ganancia neta** = ingresos + otros ingresos − costos − gastos.
 - **Valor de inventario** = suma de `stock * average_cost` sobre todos
@@ -250,6 +256,23 @@ Agrupa por producto, suma cantidad e ingresos (`quantity * price`),
 calcula el porcentaje sobre el total y los serializa como `TopProduct`
 (una clase interna con campos pre-formateados). Renderiza `list.html`
 con `show_actions=False`.
+
+### `sales_by_department(request, period='mes')`
+
+Reporte que agrupa ventas (`Sale.quantity * Sale.price`) por
+`invoice__customer_obj__department__name`. Sirve para ver distribución
+geográfica de los ingresos entre los departamentos de Nicaragua.
+
+**Importante**: tras la migración `0013`, todas las facturas tienen
+`customer_obj` obligatorio (las que eran "Generic" se asignaron al
+"Cliente Genérico"). Por tanto el reporte utiliza **todas** las
+facturas; las que tienen como cliente el "Cliente Genérico" sin
+departamento quedan agrupadas bajo "Sin departamento".
+
+Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
+`list.html` con `show_actions=False`, sin acciones de edición.
+Devuelve columnas: `Departamento`, `Unidades Vendidas`, `Ingresos
+Totales`, `% por Ingresos`.
 
 ### `user_profile(request)`
 

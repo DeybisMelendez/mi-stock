@@ -45,6 +45,7 @@
             <li class="nav-panel__section">Catálogo</li>
             <li><a href="{% url 'list' 'product' %}"><i class="material-icons icon icon--gap-md">inventory_2</i>Productos</a></li>
             <li><a href="{% url 'list' 'category' %}"><i class="material-icons icon icon--gap-md">label</i>Categorías</a></li>
+            <li><a href="{% url 'list' 'customer' %}"><i class="material-icons icon icon--gap-md">group</i>Clientes</a></li>
             <li><a href="{% url 'list' 'expensecategory' %}"><i class="material-icons icon icon--gap-md">paid</i>Categorías de Gastos</a></li>
             <li><a href="{% url 'list' 'otherincomecategory' %}"><i class="material-icons icon icon--gap-md">label</i>Categorías de Otros Ingresos</a></li>
             <li class="nav-panel__divider"></li>
@@ -56,6 +57,7 @@
             <li class="nav-panel__divider"></li>
             <li class="nav-panel__section">Reportes</li>
             <li><a href="{% url 'month_result' '0' %}"><i class="material-icons icon icon--gap-md">bar_chart</i>Resultados</a></li>
+            <li><a href="{% url 'sales_by_department' %}"><i class="material-icons icon icon--gap-md">map</i>Ventas por depto</a></li>
             <li class="nav-panel__divider"></li>
             <li class="nav-panel__section">Cuenta</li>
             <li><a href="{% url 'user_profile' %}"><i class="material-icons icon icon--gap-md">person</i>Perfil</a></li>

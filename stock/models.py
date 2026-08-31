@@ -146,13 +146,16 @@ class Purchase(models.Model):
 class SaleInvoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     date = models.DateField(default=timezone.now)
-    customer = models.CharField(max_length=200, default="Generic")
+    customer_obj = models.ForeignKey(
+        "Customer", on_delete=models.PROTECT,
+        related_name="invoices",
+    )
 
     def get_total(self):
         return sum(item.get_total() for item in self.items.all())
 
     def __str__(self):
-        return f"Sale Invoice #{self.id} - {self.customer}"
+        return f"Sale Invoice #{self.id} - {self.customer_obj.name}"
 
     class Meta:
         ordering = ['-date']
@@ -235,6 +238,36 @@ class Expense(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class Department(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    code = models.CharField(max_length=3, unique=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class Customer(models.Model):
+    name = models.CharField(max_length=200)
+    whatsapp = models.CharField(max_length=20, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    department = models.ForeignKey(
+        Department, on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    notes = models.TextField(blank=True, null=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class OtherIncomeCategory(models.Model):

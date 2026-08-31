@@ -5,6 +5,14 @@
   <form method="post">
     {% csrf_token %}
     {{ form.as_div }}
+    {% if kind == 'sale' %}
+    <small class="muted">
+      ¿No existe el cliente?
+      <a href="{% url 'new' 'customer' %}" target="_blank" rel="noopener">
+        Registrar nuevo cliente
+      </a>
+    </small>
+    {% endif %}
 
 <h2>Productos</h2>
     <div class="table-wrap" x-data="invoiceTable()" x-init="init()">

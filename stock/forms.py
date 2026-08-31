@@ -4,6 +4,7 @@ from .models import (
     Purchase, Sale, Expense,
     PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
+    Department, Customer,
 )
 
 
@@ -49,6 +50,15 @@ class OtherIncomeCategoryForm(forms.ModelForm):
         fields = ["name"]
 
 
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = ["name", "whatsapp", "address", "department", "notes", "active"]
+        widgets = {
+            "whatsapp": forms.TextInput(attrs={"type": "tel", "placeholder": "+505 8888 8888"}),
+        }
+
+
 class OtherIncomeForm(forms.ModelForm):
     class Meta:
         model = OtherIncome
@@ -82,10 +92,15 @@ class PurchaseItemForm(forms.ModelForm):
 class SaleInvoiceForm(forms.ModelForm):
     class Meta:
         model = SaleInvoice
-        fields = ["date", "customer"]
+        fields = ["date", "customer_obj"]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["customer_obj"].queryset = Customer.objects.filter(active=True).order_by("name")
+        self.fields["customer_obj"].label_from_instance = lambda obj: obj.name
 
 
 class SaleItemForm(forms.ModelForm):
