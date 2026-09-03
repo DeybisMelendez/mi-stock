@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>{{ title }}</h1>
+  <a href="{% url 'otherincomecategory_new' %}" role="button"><i class="material-icons">add</i> Nueva</a>
+  <hr>
+  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json only %}
+</main>
+{% endblock %}

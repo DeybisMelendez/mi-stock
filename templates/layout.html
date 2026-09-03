@@ -43,18 +43,18 @@
         </div>
         <ul class="nav-panel__list">
             <li class="nav-panel__section">Catálogo</li>
-            <li><a href="{% url 'list' 'product' %}"><i class="material-icons icon icon--gap-md">inventory_2</i>Productos</a></li>
-            <li><a href="{% url 'list' 'category' %}"><i class="material-icons icon icon--gap-md">label</i>Categorías</a></li>
-            <li><a href="{% url 'list' 'tag' %}"><i class="material-icons icon icon--gap-md">sell</i>Etiquetas</a></li>
-            <li><a href="{% url 'list' 'customer' %}"><i class="material-icons icon icon--gap-md">group</i>Clientes</a></li>
-            <li><a href="{% url 'list' 'expensecategory' %}"><i class="material-icons icon icon--gap-md">paid</i>Categorías de Gastos</a></li>
-            <li><a href="{% url 'list' 'otherincomecategory' %}"><i class="material-icons icon icon--gap-md">label</i>Categorías de Otros Ingresos</a></li>
+            <li><a href="{% url 'product_list' %}"><i class="material-icons icon icon--gap-md">inventory_2</i>Productos</a></li>
+            <li><a href="{% url 'category_list' %}"><i class="material-icons icon icon--gap-md">label</i>Categorías</a></li>
+            <li><a href="{% url 'tag_list' %}"><i class="material-icons icon icon--gap-md">sell</i>Etiquetas</a></li>
+            <li><a href="{% url 'customer_list' %}"><i class="material-icons icon icon--gap-md">group</i>Clientes</a></li>
+            <li><a href="{% url 'expensecategory_list' %}"><i class="material-icons icon icon--gap-md">paid</i>Categorías de Gastos</a></li>
+            <li><a href="{% url 'otherincomecategory_list' %}"><i class="material-icons icon icon--gap-md">label</i>Categorías de Otros Ingresos</a></li>
             <li class="nav-panel__divider"></li>
             <li class="nav-panel__section">Operaciones</li>
-            <li><a href="{% url 'list' 'sale' %}"><i class="material-icons icon icon--gap-md">point_of_sale</i>Ventas</a></li>
-            <li><a href="{% url 'list' 'purchase' %}"><i class="material-icons icon icon--gap-md">shopping_cart</i>Compras</a></li>
-            <li><a href="{% url 'list' 'expense' %}"><i class="material-icons icon icon--gap-md">payments</i>Gastos</a></li>
-            <li><a href="{% url 'list' 'otherincome' %}"><i class="material-icons icon icon--gap-md">account_balance_wallet</i>Otros Ingresos</a></li>
+            <li><a href="{% url 'sale_list' %}"><i class="material-icons icon icon--gap-md">point_of_sale</i>Ventas</a></li>
+            <li><a href="{% url 'purchase_list' %}"><i class="material-icons icon icon--gap-md">shopping_cart</i>Compras</a></li>
+            <li><a href="{% url 'expense_list' %}"><i class="material-icons icon icon--gap-md">payments</i>Gastos</a></li>
+            <li><a href="{% url 'otherincome_list' %}"><i class="material-icons icon icon--gap-md">account_balance_wallet</i>Otros Ingresos</a></li>
             <li class="nav-panel__divider"></li>
             <li class="nav-panel__section">Reportes</li>
             <li><a href="{% url 'month_result' '0' %}"><i class="material-icons icon icon--gap-md">bar_chart</i>Resultados</a></li>

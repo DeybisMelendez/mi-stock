@@ -16,7 +16,7 @@ debe reflejarse aquí (ver `docs/mantenimiento.md`).
 | [`arquitectura.md`](arquitectura.md) | Vista global del proyecto: apps Django, stack, capas |
 | [`modelos.md`](modelos.md) | Cada modelo: campos, relaciones, `Meta`, métodos |
 | [`logica-stock-costo.md`](logica-stock-costo.md) | Lógica de `save()`/`delete()` que muta `Product.stock` y `average_cost` |
-| [`vistas-y-urls.md`](vistas-y-urls.md) | Catálogo de vistas, mapeo URL → vista, sistema genérico CRUD |
+| [`vistas-y-urls.md`](vistas-y-urls.md) | Catálogo de vistas dedicadas, mapeo URL → vista |
 | [`formularios.md`](formularios.md) | Forms y formsets (incluye `inlineformset_factory`) |
 | [`migraciones.md`](migraciones.md) | Historial de migraciones y advertencias de rollback |
 | [`importar-exportar.md`](importar-exportar.md) | Formato JSON de respaldo y restauración |
@@ -39,7 +39,7 @@ debe reflejarse aquí (ver `docs/mantenimiento.md`).
 │   ├── api.py            # API pública de productos (solo lectura)
 │   ├── urls.py           # Rutas
 │   ├── admin.py          # Registro en Django admin
-│   ├── templatetags/     # Filtros de plantilla (getattribute)
+│   ├── templatetags/     # Filtros de plantilla (markdown_safe)
 │   └── migrations/       # Migraciones
 ├── templates/            # Plantillas a nivel de proyecto (no per-app)
 ├── static/css/styles.css # Hoja de estilos de la app

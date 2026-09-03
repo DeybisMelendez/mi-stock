@@ -22,28 +22,102 @@ convenciones. Para la guía de CSS, ver [`docs/estilos.md`](estilos.md).
   carpeta `media/` con fotos subidas).
 
 Si necesitas agregar JS, hazlo inline en el template (como ya hacen
-`home.html`, `list.html` y `invoice_form.html`).
+`home.html` e `invoice_form.html`).
 
 ## Estructura de `templates/`
 
 ```
 templates/
 ├── layout.html              # Layout base: navbar, CDN, mensajes
-├── list.html                # Lista genérica con Grid.js + Alpine (tabs en productos)
-├── form.html                # Formulario genérico (1 form por vista)
+├── includes/
+│   ├── grid_table.html      # Parcial: tabla Grid.js parametrizable
+│   ├── tag_filter.html      # Parcial: barra de filtro por etiqueta
+│   ├── period_nav.html      # Parcial: navegación de períodos de reportes
+│   └── messages.html        # Mensajes Django descartables
+├── product_list.html        # Lista de productos (tabs + filtro etiqueta)
+├── category_list.html       # Lista de categorías
+├── tag_list.html            # Lista de etiquetas
+├── customer_list.html       # Lista de clientes
+├── expensecategory_list.html
+├── otherincomecategory_list.html
+├── expense_list.html        # Lista de gastos
+├── otherincome_list.html    # Lista de otros ingresos
+├── purchase_list.html       # Lista de facturas de compra
+├── sale_list.html           # Lista de facturas de venta
+├── category_form.html       # Form de categoría (patrón de los 7 forms simples)
+├── tag_form.html            # (tag, customer, expensecategory,
+├── customer_form.html       #  otherincomecategory, expense y
+├── expensecategory_form.html    #  otherincome tienen su propio form)
+├── otherincomecategory_form.html
+├── expense_form.html
+├── otherincome_form.html
 ├── product_form.html        # Producto + formset de fotos (con Alpine mínimo)
 ├── invoice_form.html        # Factura compra/venta + formset + Alpine para subtotales
 ├── product_detail.html      # Detalle de producto con galería
 ├── invoice_detail.html      # Detalle de factura (solo lectura)
 ├── home.html                # Dashboard: KPIs, gráficos, top productos, alertas
 ├── month_result.html        # Estado de resultados mensual
+├── top_products.html        # Reporte: productos más vendidos
+├── sales_by_department.html # Reporte: ventas por departamento
+├── sales_by_tag.html        # Reporte: ventas por etiqueta
 ├── user_profile.html        # Perfil de usuario + logout
 ├── import_form.html         # Subida de archivo de respaldo
-├── includes/
-│   └── messages.html        # Mensajes Django descartables
 └── registration/
     └── login.html           # Login estándar
 ```
+
+> **Convención**: cada modelo CRUD simple tiene su par
+> `<m>_list.html` + `<m>_form.html` y cada vista su template propio.
+> Lo mecánico (Grid.js, filtro de etiquetas, navegación de períodos)
+> vive en parciales bajo `includes/` para no duplicar JS.
+
+## Parciales reutilizables (`includes/`)
+
+### `grid_table.html` — Tabla Grid.js
+
+Monta una tabla Grid.js (búsqueda, paginación de 25, orden con iconos
+Material, idioma español). Se incluye con `{% include ... with ... only %}`:
+
+| Parámetro | Descripción |
+|---|---|
+| `container_id` | id único del `<div>` contenedor (una página puede tener varias tablas) |
+| `headers_json` | JSON array con los encabezados |
+| `data_json` | JSON array de filas (arrays de strings) |
+| `no_actions` | pasar `True` para tablas de solo lectura (reportes) |
+| `empty_message` | mensaje cuando no hay registros |
+
+**Celda de acciones**: si la tabla tiene acciones (default), la última
+celda de cada fila es un objeto (o string JSON) con las URLs a
+renderizar como iconos:
+
+```json
+{"detail": "...", "edit": "..."}
+```
+
+El parcial renderiza `visibility` (ver) y `edit` (editar). Si además
+hay `"toggle"` (lista de productos), renderiza un mini-form POST con
+icono `toggle_on`/`toggle_off` (activar/desactivar), leyendo el token
+CSRF de `<input id="csrf-token">` (que `product_list.html` añade) y
+preservando `next`. La vista serializa estos objetos en Python; el
+parcial solo los convierte en iconos.
+
+### `tag_filter.html` — Barra de filtro por etiqueta
+
+Incluida por `product_list.html`, `purchase_list.html` y
+`sale_list.html`. Parámetros: `available_tags` (lista de `{id, name}`),
+`selected_tag`, `clear_url` (URL del enlace "Limpiar filtro") y
+`preserve_tab` (solo `product_list.html`, para mantener `?tab=` al
+cambiar etiqueta). El `select` hace submit automático vía AlpineJS
+(`@change="$event.target.form.submit()"`).
+
+### `period_nav.html` — Navegación de períodos
+
+Incluida por los tres templates de reportes (`top_products.html`,
+`sales_by_department.html`, `sales_by_tag.html`). Parámetros:
+`url_name` (nombre de URL que recibe `<str:period>`), `period`
+(período actual, resaltado en negrita) y `periods` (lista de pares
+`(clave, etiqueta)` alimentada por la constante `REPORT_PERIODS` de
+`views.py`).
 
 ## Layout base (`layout.html`)
 
@@ -78,7 +152,7 @@ proyecto es **768 px**:
 
 - **`< 768 px` (móvil/tablet vertical):**
   - El panel off-canvas cubre `80vw` (máx 320 px) desde la izquierda.
-  - Las tablas (`month_result.html`, `list.html`, formset de facturas)
+  - Las tablas (`month_result.html`, las listas, formset de facturas)
     hacen scroll horizontal dentro de `.table-wrap` con sombra lateral
     indicando "hay más →".
   - El formset de `invoice_form.html` se renderiza como **cards
@@ -106,71 +180,58 @@ off-canvas.
 > Si añades un formset con muchas columnas, pon `data-label` en cada
 > `<td>` para que el CSS móvil pueda convertir la tabla en cards.
 
-## `list.html` — La lista más usada
+## Templates de lista
 
-Sirve para casi todos los modelos. Tiene dos ramas:
+Todas las listas siguen el mismo esqueleto:
 
-### Rama `model == 'product'`
+```html
+{% extends "layout.html" %}
+{% block content %}
+<main class="container">
+  <h1>{{ title }}</h1>
+  <a href="{% url '<m>_new' %}" role="button"><i class="material-icons">add</i> Nuevo</a>
+  <hr>
+  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json only %}
+</main>
+{% endblock %}
+```
 
-- Renderiza dos `<div id="gridjs-active">` y `<div id="gridjs-inactive">`.
-- AlpineJS controla la visibilidad según `tab`.
-- La vista `generic_list_view` pasa `active_data_json` y
-  `inactive_data_json` ya serializados.
-- La paginación de Grid.js es 25 por página, con búsqueda.
-- Los iconos de orden se reemplazan por Material Icons vía callback
-  `sort.icon`.
-- La columna "Etiquetas" se renderiza con un caso especial en
-  `_serialize`: se hace `p.tags.all()` y se concatenan los nombres con
-  `, `. El resto de columnas mantiene el recorrido `__`.
-- La celda de **Acciones** se serializa como JSON con tres campos
-  (`detail`, `edit`, `toggle`) más `active` y `next` (URL actual con
-  sus query params). El JS hace `JSON.parse` y renderiza tres iconos:
-  `visibility` (ver), `edit` (editar) y un mini-form POST con icono
-  `toggle_on`/`toggle_off` (activar/desactivar). El token CSRF se
-  inyecta desde un `<input type="hidden" id="csrf-token">` que la
-  plantilla añade al inicio de la rama. El `next` se pasa como hidden
-  para que la vista `product_toggle_active` redirija de vuelta a la
-  lista preservando `?tab=` y `?tag=`.
+La vista serializa las filas en Python (`headers_json` +
+`data_json`), con la última celda como objeto de acciones
+`{"edit": ...}` (ver `vistas-y-urls.md`). El template solo aporta el
+título, el botón "Nuevo" y los parciales necesarios.
 
-### Barra de filtro por etiqueta
+### `product_list.html` — Lista de productos
 
-Las listas de productos y ventas muestran, justo después del botón
-"Nuevo", una barra con un selector de etiquetas cuando la vista pasa
-`available_tags` en el contexto (ver
-[`vistas-y-urls.md`](vistas-y-urls.md#filtro-tagid-en-product-y-sale)).
+La más interactiva de las listas:
 
-- Si no hay etiqueta seleccionada: dropdown con "— Todas —" y todas
-  las etiquetas. Al cambiar, el form hace submit vía AlpineJS
-  (`@change="$event.target.form.submit()"`).
-- Si hay etiqueta seleccionada (parámetro `?tag=<id>`): aparece un
-  enlace "Limpiar filtro" junto al selector.
-- En `/product`, el form lleva un `<input type="hidden" name="tab">`
-  con binding a `tab` (AlpineJS) para preservar el tab activo al
-  cambiar de etiqueta.
+- AlpineJS (`x-data="productTabs(...)"`) controla los tabs
+  activos/inactivos y actualiza `?tab=` en la URL.
+- Incluye `grid_table.html` **dos veces** (`container_id` distintos:
+  `gridjs-active` / `gridjs-inactive`), una por tab.
+- Incluye `tag_filter.html` con `preserve_tab=True`.
+- Añade `<input type="hidden" id="csrf-token">` para el mini-form
+  POST de activar/desactivar del parcial.
 
-### Rama genérica
+### `purchase_list.html` / `sale_list.html` — Listas de facturas
 
-- Un solo `<div id="gridjs-table">`.
-- La vista serializa `page_obj` recorriendo `columns` (con soporte de
-  `__` para acceder a relaciones). El filtro `format_value` (ver más
-  abajo) formatea fechas.
-- Los enlaces de acción ("Editar", "Ver") se codifican como
-  `detail_url|edit_url` en la última celda; Grid.js los separa y crea
-  los `<a>` con iconos.
-- Para facturas (`purchase`/`sale`), `show_actions` se controla igual
-  y los nombres de URL son `purchase_invoice_edit`, etc.
+Botón "Nueva" hacia `purchase_invoice_new` / `sale_invoice_new` +
+`tag_filter.html` + `grid_table.html`. Main lleva `x-data="{}"` para
+que AlpineJS procese el `@change` del filtro.
 
-> **Si añades una columna nueva a un modelo que se renderiza con
-> `list.html`**, debes:
-> 1. Añadir la etiqueta en `fields` y el lookup en `columns` (en la
->    `match` del modelo en `generic_list_view`).
-> 2. Si el lookup es `__` (relación), asegúrate de que el filtro
->    `format_value` lo soporte (ya lo hace, pero verifica con datos
->    reales).
-> 3. Documentar el cambio en
->    [`docs/mantenimiento.md`](mantenimiento.md).
+### Reportes (`top_products.html`, `sales_by_department.html`, `sales_by_tag.html`)
 
-## `form.html` — Formulario genérico
+Título + `period_nav.html` + `grid_table.html` con `no_actions=True`
+(sin columna de acciones).
+
+## Templates de formulario
+
+### `<m>_form.html` — Formularios de los modelos simples
+
+Los 7 templates (`category_form.html`, `tag_form.html`,
+`customer_form.html`, `expensecategory_form.html`,
+`otherincomecategory_form.html`, `expense_form.html`,
+`otherincome_form.html`) comparten el mismo esqueleto:
 
 ```html
 <form method="post">
@@ -180,15 +241,16 @@ Las listas de productos y ventas muestran, justo después del botón
 </form>
 ```
 
-`{{ form.as_div }}` renderiza cada campo en un `<div>`. No tiene JS.
+No tienen JS. Cada uno existe por separado para que pueda evolucionar
+independiente (campos, widgets, validación en cliente, etc.).
 
-Tras guardar, la vista `generic_form_view` redirige a:
+Tras guardar, la vista `<m>_form_view` redirige a:
 
 - La **lista** del modelo si venía de una edición (`pk` presente).
 - Un **formulario vacío** si venía de una creación (`pk` ausente),
   para permitir el flujo batch de "crear varios seguidos".
 
-## `product_form.html` — Producto + fotos
+### `product_form.html` — Producto + fotos
 
 - Form principal `ProductForm` (campos del producto).
 - Formset `ProductImageFormSet` para múltiples fotos.
@@ -203,7 +265,7 @@ Tras guardar, `product_form_view` redirige a:
   edición (`pk` presente), para mostrar el resultado de los cambios.
 - `product_new` (formulario vacío) si venía de una creación.
 
-## `invoice_form.html` — Factura + líneas (AlpineJS)
+### `invoice_form.html` — Factura + líneas (AlpineJS)
 
 La más interactiva. Renderiza:
 
@@ -307,38 +369,6 @@ AlpineJS:
 
 Definidos en `stock/templatetags/getattribute.py`.
 
-### `getattribute`
-
-```django
-{{ object|getattribute:"name" }}
-{{ object|getattribute:"category__name" }}
-```
-
-Permite acceder a atributos con notación `__` (Django usa esto para
-relaciones en `values()`). Devuelve `""` si algo falla.
-
-> En `list.html` el filtro que se usa es `format_value` (más completo),
-> no `getattribute`.
-
-### `format_value`
-
-```django
-{{ item|format_value:"date" }}
-{{ item|format_value:"category__name" }}
-```
-
-Es la versión "inteligente":
-
-- Recorre las partes del lookup (`__`).
-- Soporta tanto objetos (`getattr`) como dicts/listas (`__getitem__`).
-- Si el resultado es `datetime` → `dd/mm/YYYY HH:MM`.
-- Si es `date` → `dd/mm/YYYY`.
-- Para otros tipos → `str(value)` o `""` si es `None`.
-- Devuelve `""` si algo falla (silencioso).
-
-Este filtro es el que usa `list.html` para renderizar celdas, por eso
-se carga con `{% load getattribute %}` al inicio del template.
-
 ### `markdown_safe`
 
 ```django
@@ -356,12 +386,18 @@ Implementación en `stock/templatetags/getattribute.py`:
   en el código). Esto evita XSS si la descripción proviene de fuentes
   no controladas.
 - Devuelve cadena vacía si el valor es `None` o si ocurre algún error
-  de parseo (fallo silencioso, análogo a `getattribute`).
+  de parseo (fallo silencioso).
 
-Usado en `product_detail.html` (dentro de un contenedor
-`.product-description` para que los estilos CSS se apliquen al HTML
-generado). Si necesitas renderizar markdown en otro lugar, reutiliza
-este filtro en lugar de instalar otra cosa.
+Es el único filtro del módulo. Usado en `product_detail.html` (dentro
+de un contenedor `.product-description` para que los estilos CSS se
+apliquen al HTML generado). Si necesitas renderizar markdown en otro
+lugar, reutiliza este filtro en lugar de instalar otra cosa.
+
+> **Nota**: el módulo se llama `getattribute.py` por motivos
+> históricos (antes contenía los filtros `getattribute` y
+> `format_value`, eliminados al migrar las listas a serialización en
+> Python). El nombre se conserva para no romper `{% load
+> getattribute %}`.
 
 ## Convenciones de los templates
 
@@ -370,14 +406,19 @@ este filtro en lugar de instalar otra cosa.
   [`docs/estilos.md`](estilos.md).
 - **Sin `style="…"`** en HTML. Si necesitas estilos inline, crea una
   clase en `styles.css`.
-- **`{% load getattribute %}`** al inicio de `list.html` (donde se usa
-  `format_value`). Otros templates no lo necesitan.
+- **Comentarios multilínea** con `{% comment %} … {% endcomment %}`.
+  El token `{# … #}` es de **una sola línea** en Django: si cruza un
+  salto de línea, el texto se imprime tal cual en la página.
+- **`{% load getattribute %}`** solo en `product_detail.html` (para
+  `markdown_safe`).
 - **`{% load humanize %}`** en `month_result.html` (para `intcomma`).
 - **Iconos** siempre con `<i class="material-icons">nombre</i>` (no con
   font-size inline, salvo casos justificados).
 - **Botones** con `<a role="button">…</a>` o `<button type="…">…</button>`
   (Pico los estiliza automáticamente).
 - **CSRF**: todos los `<form method="post">` llevan `{% csrf_token %}`.
+- **JSON inyectado desde vistas** se marca con `|safe` (ya viene de
+  `json.dumps` en Python; el template no serializa).
 
 ## Internacionalización
 

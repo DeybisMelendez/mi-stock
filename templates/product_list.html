@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container" x-data="productTabs('{{ tab|default:'active' }}')">
+  <h1>{{ title }}</h1>
+  <a href="{% url 'product_new' %}" role="button"><i class="material-icons">add</i> Nuevo</a>
+
+  {% include "includes/tag_filter.html" with available_tags=available_tags selected_tag=selected_tag clear_url=clear_url preserve_tab=True only %}
+
+  <hr>
+
+  <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+
+  <nav class="tabs-bar tabs-bar--buttons" role="tablist">
+    <button type="button" role="tab"
+            :class="{ 'tab-active': tab === 'active' }"
+            :aria-selected="tab === 'active'"
+            @click="setTab('active')">
+      Activos <small class="muted">({{ active_count }})</small>
+    </button>
+    <button type="button" role="tab"
+            :class="{ 'tab-active': tab === 'inactive' }"
+            :aria-selected="tab === 'inactive'"
+            @click="setTab('inactive')">
+      Inactivos <small class="muted">({{ inactive_count }})</small>
+    </button>
+  </nav>
+
+  <div x-show="tab === 'active'" x-cloak>
+    {% include "includes/grid_table.html" with container_id="gridjs-active" headers_json=headers_json data_json=active_data_json empty_message="No hay productos activos." only %}
+  </div>
+
+  <div x-show="tab === 'inactive'" x-cloak>
+    {% include "includes/grid_table.html" with container_id="gridjs-inactive" headers_json=headers_json data_json=inactive_data_json empty_message="No hay productos inactivos." only %}
+  </div>
+
+  <script>
+    function productTabs(initial) {
+      return {
+        tab: initial === 'inactive' ? 'inactive' : 'active',
+        setTab(t) {
+          this.tab = t;
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', t);
+          window.history.replaceState({}, '', url);
+        }
+      };
+    }
+  </script>
+</main>
+{% endblock %}

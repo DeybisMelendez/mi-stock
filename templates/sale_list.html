@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block content %}
+<main class="container" x-data="{}">
+  <h1>{{ title }}</h1>
+  <a href="{% url 'sale_invoice_new' %}" role="button"><i class="material-icons">add</i> Nueva</a>
+
+  {% include "includes/tag_filter.html" with available_tags=available_tags selected_tag=selected_tag clear_url=clear_url only %}
+
+  <hr>
+
+  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json only %}
+</main>
+{% endblock %}

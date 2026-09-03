@@ -49,7 +49,9 @@ La nomenclatura usada es **BEM-light**:
 
 Reglas:
 
-- Toda regla nueva usa **clases**, nunca IDs (excepto `#gridjs-table`, que es
+- Toda regla nueva usa **clases**, nunca IDs (excepto los contenedores
+  de Grid.js, cuya id la fija el parámetro `container_id` del parcial
+  `includes/grid_table.html`, que es
   parte contractual de Grid.js) ni selectores por tag.
 - Los modificadores nunca se usan solos: siempre junto al bloque base.
   Ejemplo: `<article class="kpi-card kpi-card--success">`.
@@ -360,12 +362,13 @@ En `max-width: 767px`, todos los `button`, `a[role="button"]`,
 
 ### 5.5 Grid.js
 
-Grid.js inserta su propio DOM en `#gridjs-table`. Las reglas en `styles.css`
-aseguran que:
+Grid.js inserta su propio DOM en el contenedor que le pasa el parcial
+`includes/grid_table.html` (parámetro `container_id`). Las reglas en
+`styles.css` aseguran que:
 
 - el wrapper haga scroll horizontal en celulares,
 - el header no muestre el icono de orden interno de Grid.js (se reemplaza por
-  el icono de Material Icons definido en `list.html`),
+  el icono de Material Icons definido en el parcial),
 - las celdas no tengan un `min-width` artificial,
 - el contenedor ocupe todo el ancho.
 

@@ -22,7 +22,7 @@ para uso personal o pequeños negocios. Toda la lógica vive en una única app
 │  ┌──────────────────────┐    ┌──────────────────────────┐   │
 │  │  URL routing         │───▶│  Vistas (stock/views.py) │   │
 │  │  (mistock/urls.py)   │    │  - @login_required       │   │
-│  │  (stock/urls.py)     │    │  - CRUD genérico + ded.  │   │
+│  │  (stock/urls.py)     │    │  - Vistas dedicadas      │   │
 │  └──────────────────────┘    └──────────┬───────────────┘   │
 │                                         │                    │
 │                                         ▼                    │
@@ -54,18 +54,22 @@ para uso personal o pequeños negocios. Toda la lógica vive en una única app
 │   ├── views.py              # Vistas + PurchaseItemFormSet / SaleItemFormSet
 │   ├── forms.py              # ModelForms y formsets
 │   ├── api.py                # API pública de productos (solo lectura)
-│   ├── urls.py               # Rutas (con regex para CRUD genérico)
+│   ├── urls.py               # Rutas (path() explícitos por modelo)
 │   ├── admin.py              # Registro en Django admin
 │   ├── apps.py
 │   ├── templatetags/
-│   │   └── getattribute.py   # Filtros `getattribute` y `format_value`
-│   ├── migrations/           # 10 migraciones (0001 → 0010)
+│   │   └── getattribute.py   # Filtro `markdown_safe`
+│   ├── migrations/           # 15 migraciones (0001 → 0015)
 │   └── tests.py              # Vacío (no hay suite)
 │
 ├── templates/                # Plantillas a nivel de proyecto
 │   ├── layout.html           # Layout base con navbar y CDN
-│   ├── list.html             # Lista con Grid.js + Alpine (tabs en productos)
-│   ├── form.html             # Formulario genérico
+│   ├── includes/             # Parciales: grid_table, tag_filter,
+│   │                         # period_nav, messages
+│   ├── <m>_list.html         # Lista por modelo (category, tag,
+│   │                         # customer, product, purchase, sale...)
+│   ├── <m>_form.html         # Form por modelo (category, tag,
+│   │                         # customer, expense...)
 │   ├── product_form.html     # Producto + formset de fotos
 │   ├── invoice_form.html     # Factura compra/venta + formset + subtotales
 │   ├── product_detail.html   # Detalle de producto (galería)
@@ -74,8 +78,6 @@ para uso personal o pequeños negocios. Toda la lógica vive en una única app
 │   ├── month_result.html     # Estado de resultados mensual
 │   ├── user_profile.html     # Perfil de usuario
 │   ├── import_form.html      # Subida de archivo de respaldo
-│   ├── includes/
-│   │   └── messages.html     # Mensajes Django con cierre Alpine
 │   └── registration/
 │       └── login.html        # Login estándar
 │
@@ -112,7 +114,8 @@ No hay servidor de producción configurado: solo `runserver` para desarrollo.
 - **[Chart.js](https://www.chartjs.org/)** — gráficos del dashboard
   (`home.html`), cargado solo en esa página.
 - **[Grid.js](https://gridjs.io/)** — tablas con búsqueda y paginación
-  (`list.html`).
+  (parcial `includes/grid_table.html`, incluido por los templates de
+  lista y reportes).
 
 **No hay**:
 
@@ -151,18 +154,20 @@ En `DEBUG=True`, sirve también archivos de `MEDIA_URL`.
 
 ### 2. Routing (`stock/urls.py`)
 
-Define rutas explícitas para vistas dedicadas (`home`, facturas, producto)
-y usa `re_path` con regex para mapear el CRUD genérico por nombre de modelo
-(`category`, `product`, `sale`, `purchase`, etc.). Detalles en
-[`vistas-y-urls.md`](vistas-y-urls.md).
+Define rutas explícitas con `path()` para todas las vistas: cada
+modelo simple tiene su lista, su formulario y sus tres rutas propias
+(`/m/`, `/m/new/`, `/m/<pk>/edit/`). No hay vistas genéricas ni
+regex. Detalles en [`vistas-y-urls.md`](vistas-y-urls.md).
 
 ### 3. Vistas (`stock/views.py`)
 
-Todas llevan `@login_required`. Hay dos estilos:
+Todas llevan `@login_required` y son funciones dedicadas: cada vista
+renderiza su propio template.
 
-- **CRUD genérico**: `generic_list_view` y `generic_form_view` resuelven
-  el modelo a partir de un `model_str` y un mapeo `MODEL_NAME_MAP`.
-- **Vistas dedicadas**: `home`, `product_form_view`, `product_detail_view`,
+- **CRUD por modelo**: `<m>_list_view` y `<m>_form_view` para los 7
+  modelos simples, más `product_list_view`, `purchase_list_view` y
+  `sale_list_view`.
+- **Vistas complejas**: `product_form_view`, `product_detail_view`,
   `purchase_invoice_form_view`, `sale_invoice_form_view`, `month_result`,
   `top_products_view`, `export_data`, `import_data`, `user_profile`,
   `purchase_invoice_detail_view`, `sale_invoice_detail_view`.
@@ -202,15 +207,13 @@ propios `--ms-*` que derivan de variables de Pico, sin `style=""` ni
 ## Flujo de un request típico
 
 1. El usuario navega (p. ej. a `/product/`).
-2. `mistock/urls.py` → `include("stock.urls")` → `re_path` matchea
-   `product` → `views.generic_list_view(request, model_str="product")`.
-3. La vista valida que `model_str` esté en `valid_models`, resuelve el
-   modelo con `apps.get_model("stock", "PurchaseInvoice")` (mapeo via
-   `MODEL_NAME_MAP`) y prepara los datos según el caso.
-4. Serializa los productos a JSON para alimentar Grid.js en el cliente.
-5. Renderiza `templates/list.html` con el contexto.
-6. En el navegador, AlpineJS activa los tabs y Grid.js monta la tabla
-   con búsqueda y paginación.
+2. `mistock/urls.py` → `include("stock.urls")` → `path()` matchea
+   `product/` → `views.product_list_view(request)`.
+3. La vista consulta los productos y serializa cada fila a JSON
+   (`headers_json` + `data_json`, con la celda de acciones como objeto).
+4. Renderiza `templates/product_list.html` con el contexto.
+5. En el navegador, el parcial `includes/grid_table.html` monta Grid.js
+   con búsqueda y paginación, y AlpineJS activa los tabs.
 
 ## Lo que NO está en el proyecto
 

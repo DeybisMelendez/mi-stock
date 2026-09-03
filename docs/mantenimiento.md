@@ -35,9 +35,8 @@ agentes automáticamente.
 2. [`docs/migraciones.md`](migraciones.md) — entrada en la tabla
    cronológica.
 3. Si el campo sale en una lista:
-   - [`docs/vistas-y-urls.md`](vistas-y-urls.md) — actualizar
-     `fields`/`columns`/`case` correspondiente en
-     `generic_list_view`.
+   - [`docs/vistas-y-urls.md`](vistas-y-urls.md) — actualizar la
+     serialización de la vista `<m>_list_view` correspondiente.
    - [`docs/frontend.md`](frontend.md) — mencionar si cambia el
      comportamiento de Grid.js.
 4. Si el campo aparece en una factura:
@@ -53,37 +52,36 @@ agentes automáticamente.
 1. Modelo en `stock/models.py` + migración.
 2. `ModelForm` en `stock/forms.py`.
 3. Registro en `stock/admin.py`.
-4. **Actualizar `views.py`**:
-   - Añadir a `MODEL_NAME_MAP` si la clave difiere del nombre
-     capitalizado.
-   - Añadir `case` en `generic_list_view` con `fields`, `columns`,
-     `title`, `queryset`, `page_obj`.
-   - Añadir `case` en `generic_form_view` con `form_class` y
-     `title`.
-   - Añadir el `model_str` a los `valid_models` de ambas vistas.
-5. **Actualizar `urls.py`**: añadir el `model_str` a los dos
-   `re_path` (list y form).
-6. Documentar en [`docs/modelos.md`](modelos.md),
+4. **Crear vistas dedicadas en `views.py`**: `<m>_list_view`
+   (serializa filas a `headers_json`/`data_json`) y `<m>_form_view`
+   (patrón: `pk=None` crea, `pk` edita).
+5. **Actualizar `urls.py`**: tres rutas `path()` explícitas
+   (`/m/`, `/m/new/`, `/m/<pk>/edit/`).
+6. **Crear templates** `<m>_list.html` y `<m>_form.html`
+   (reutilizando el parcial `includes/grid_table.html`).
+7. Añadir el enlace al menú en `templates/layout.html`.
+8. Documentar en [`docs/modelos.md`](modelos.md),
    [`docs/vistas-y-urls.md`](vistas-y-urls.md) y
    [`docs/formularios.md`](formularios.md).
-7. Añadir entrada en este checklist si creas un nuevo patrón
+9. Añadir entrada en este checklist si creas un nuevo patrón
    recurrente.
 
 ### Nuevo filtro por etiqueta en una lista
 
-Para añadir el filtro `?tag=<id>` en una lista gestionada por
-`generic_list_view`:
+Para añadir el filtro `?tag=<id>` en una lista dedicada
+(`<m>_list_view`):
 
-1. En el `case` correspondiente de `generic_list_view`, leer
-   `tag_id = request.GET.get("tag")`, buscar `Tag` por id, y aplicar
-   `queryset = queryset.filter(tags=selected_tag)` (o el filtro
-   equivalente si la lista es de facturas).
+1. En la vista, leer `tag_id = request.GET.get("tag")`, buscar `Tag`
+   por id, y aplicar el filtro correspondiente al queryset
+   (`filter(tags=selected_tag)` para productos o
+   `filter(items__product__tags=selected_tag).distinct()` para
+   facturas).
 2. Si la vista no tiene ya en el contexto `available_tags`,
-   `selected_tag` y `tag_filter_url_key`, añadirlos al `render`.
-3. Si el serializador es especial (caso `product`), añade el caso
-   M2M para la columna `tags`.
-4. El template `list.html` ya renderiza la barra de filtro cuando
-   `available_tags` está presente — no requiere cambios.
+   `selected_tag` y `clear_url`, añadirlos al `render`.
+3. Si el serializador es especial (caso `product`), añade la
+   columna `tags` (M2M) a las filas.
+4. Incluir el parcial `includes/tag_filter.html` en el template de
+   la lista (con `preserve_tab=True` solo si la página usa tabs).
 5. Documentar en [`docs/vistas-y-urls.md`](vistas-y-urls.md) bajo
    "Filtro `?tag=<id>`" y, si la columna de etiquetas se ve, en
    [`docs/frontend.md`](frontend.md#barra-de-filtro-por-etiqueta).
@@ -130,14 +128,14 @@ El patrón actual en todas las vistas con form es:
 - `pk` presente (edición) → redirige a la vista de detalle si existe,
   o a la lista del modelo en caso contrario.
 
-Si modificas este comportamiento en cualquier vista (`generic_form_view`,
+Si modificas este comportamiento en cualquier vista (`<m>_form_view`,
 `product_form_view`, `purchase_invoice_form_view`,
 `sale_invoice_form_view`), actualiza:
 
 1. [`docs/vistas-y-urls.md`](vistas-y-urls.md) — sección de la vista
    afectada, indicando el destino del redirect para cada caso.
 2. [`docs/frontend.md`](frontend.md) — bloque "Tras guardar" del
-   template correspondiente (`form.html`, `product_form.html`,
+   template correspondiente (`<m>_form.html`, `product_form.html`,
    `invoice_form.html`).
 3. Mantén `messages.success(request, "Se ha guardado correctamente.")`
    en la página de destino para confirmar al usuario.

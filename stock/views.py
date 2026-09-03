@@ -5,11 +5,11 @@ from django.forms import inlineformset_factory
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from .models import (
-    Category, ExpenseCategory, Product, ProductImage,
+    Category, ExpenseCategory, Product,
     Purchase, Sale, Expense,
     PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
-    Department, Customer,
+    Customer,
     Tag,
 )
 from .forms import (
@@ -31,260 +31,377 @@ from django.http import HttpResponse, Http404
 from django.core import serializers
 
 
-# Mapeo de model_str → nombre de modelo real (para apps.get_model)
-MODEL_NAME_MAP = {
-    "purchase": "PurchaseInvoice",
-    "sale": "SaleInvoice",
-    "expensecategory": "ExpenseCategory",
-    "otherincome": "OtherIncome",
-    "otherincomecategory": "OtherIncomeCategory",
-    "tag": "Tag",
-}
+# ===== Listas dedicadas (vistas y templates propios) =====
 
 
 @login_required
-def generic_list_view(request, model_str):
-    valid_models = {"category", "product", "sale", "purchase", "expense",
-                    "expensecategory", "otherincome", "otherincomecategory",
-                    "customer", "tag"}
-    if model_str not in valid_models:
-        raise Http404
+def product_list_view(request):
+    """Lista de productos con tabs activos/inactivos y filtro por etiqueta."""
+    tab = request.GET.get("tab", "active")
+    if tab not in ("active", "inactive"):
+        tab = "active"
+    tag_id = request.GET.get("tag")
+    selected_tag = None
+    if tag_id and tag_id.isdigit():
+        selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
 
-    model_name = MODEL_NAME_MAP.get(model_str, model_str.capitalize())
-    try:
-        model = apps.get_model("stock", model_name)
-    except LookupError:
-        raise Http404
+    active_qs = Product.objects.filter(active=True).select_related("category").prefetch_related("tags")
+    inactive_qs = Product.objects.filter(active=False).select_related("category").prefetch_related("tags")
+    if selected_tag:
+        active_qs = active_qs.filter(tags=selected_tag)
+        inactive_qs = inactive_qs.filter(tags=selected_tag)
 
-    # Compras y ventas usan facturas con varias líneas
-    if model_str in ("purchase", "sale"):
-        tag_id = request.GET.get("tag")
-        selected_tag = None
-        if tag_id and tag_id.isdigit():
-            selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
-        invoices = model.objects.select_related("customer_obj").all()
-        if selected_tag:
-            invoices = invoices.filter(items__product__tags=selected_tag).distinct()
+    def _serialize(qs):
         rows = []
-        for inv in invoices:
-            rows.append({
-                "id": inv.id,
-                "date": inv.date,
-                "party": inv.supplier if model_str == "purchase" else inv.customer_obj.name,
-                "items_summary": ", ".join(
-                    f"{i.quantity} × {i.product.name}"
-                    for i in inv.items.all()
-                ),
-                "total": inv.get_total(),
-            })
-        if model_str == "purchase":
-            fields = ["Fecha", "Proveedor", "Productos", "Total"]
-            columns = ["date", "party", "items_summary", "total"]
-            title = "Compras"
-        else:
-            fields = ["Fecha", "Cliente", "Productos", "Total"]
-            columns = ["date", "party", "items_summary", "total"]
-            title = "Ventas"
-        available_tags = list(Tag.objects.all().values("id", "name"))
-        context = {
-            "model": model_str,
-            "title": title,
-            "fields": fields,
-            "columns": columns,
-            "page_obj": rows,
-            "available_tags": available_tags,
-            "selected_tag": selected_tag,
-            "tag_filter_url_key": "tag",
-        }
-        return render(request, "list.html", context)
-
-    fields = []
-    columns = []
-    title = ""
-
-    match model_str:
-        case "category":
-            fields = ["Nombre"]
-            columns = ["name"]
-            title = "Categorías"
-            queryset = model.objects.all()
-            page_obj = queryset
-
-        case "expensecategory":
-            fields = ["Nombre"]
-            columns = ["name"]
-            title = "Categorías de Gastos"
-            queryset = model.objects.all()
-            page_obj = queryset
-
-        case "otherincomecategory":
-            fields = ["Nombre"]
-            columns = ["name"]
-            title = "Categorías de Otros Ingresos"
-            queryset = model.objects.all()
-            page_obj = queryset
-
-        case "product":
-            tab = request.GET.get("tab", "active")
-            if tab not in ("active", "inactive"):
-                tab = "active"
-            tag_id = request.GET.get("tag")
-            selected_tag = None
-            if tag_id and tag_id.isdigit():
-                selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
-
-            active_qs = Product.objects.filter(active=True).select_related("category").prefetch_related("tags")
-            inactive_qs = Product.objects.filter(active=False).select_related("category").prefetch_related("tags")
-            if selected_tag:
-                active_qs = active_qs.filter(tags=selected_tag)
-                inactive_qs = inactive_qs.filter(tags=selected_tag)
-            fields = ["Nombre", "Categoría",
-                      "Etiquetas", "Stock", "Precio", "Costo Promedio"]
-            columns = ["name", "category__name",
-                       "tags", "stock", "price", "average_cost"]
-            title = "Productos"
-
-            def _serialize(qs):
-                rows = []
-                for p in qs:
-                    row = []
-                    for col in columns:
-                        if col == "tags":
-                            row.append(", ".join(
-                                t.name for t in p.tags.all()
-                            ))
-                            continue
-                        val = p
-                        for part in col.split("__"):
-                            val = getattr(val, part, None) if val is not None else None
-                            if val is None:
-                                break
-                        if hasattr(val, "strftime"):
-                            val = val.strftime("%d/%m/%Y")
-                        row.append("" if val is None else str(val))
-                    edit_url   = reverse("product_edit",   args=[p.id])
-                    detail_url = reverse("product_detail", args=[p.id])
-                    toggle_url = reverse("product_toggle_active", args=[p.id])
-                    actions = json.dumps({
-                        "detail": detail_url,
-                        "edit": edit_url,
-                        "toggle": toggle_url,
-                        "active": p.active,
-                        "next": request.get_full_path(),
-                    })
-                    row.append(actions)
-                    rows.append(row)
-                return rows
-
-            available_tags = list(Tag.objects.all().values("id", "name"))
-
-            return render(request, "list.html", {
-                "model": model_str,
-                "title": title,
-                "fields": fields,
-                "columns": columns,
-                "active_count": active_qs.count(),
-                "inactive_count": inactive_qs.count(),
-                "active_data_json": json.dumps(_serialize(active_qs)),
-                "inactive_data_json": json.dumps(_serialize(inactive_qs)),
-                "tab": tab,
-                "available_tags": available_tags,
-                "selected_tag": selected_tag,
-                "tag_filter_url_key": "tag",
-                "current_full_path": request.get_full_path(),
-            })
-
-        case "expense":
-            queryset = model.objects.all().select_related("category")
-            fields = ["Fecha", "Categoría", "Descripción", "Monto"]
-            columns = ["date", "category__name", "description", "amount"]
-            title = "Gastos"
-            page_obj = queryset
-
-        case "otherincome":
-            queryset = model.objects.all().select_related("category")
-            fields = ["Fecha", "Categoría", "Descripción", "Monto"]
-            columns = ["date", "category__name", "description", "amount"]
-            title = "Otros Ingresos"
-            page_obj = queryset
-
-        case "customer":
-            queryset = model.objects.all().select_related("department")
-            fields = ["Nombre", "WhatsApp", "Departamento", "Activo"]
-            columns = ["name", "whatsapp", "department__name", "active"]
-            title = "Clientes"
-            page_obj = queryset
-
-        case "tag":
-            queryset = model.objects.all()
-            fields = ["Nombre"]
-            columns = ["name"]
-            title = "Etiquetas"
-            page_obj = queryset
+        for p in qs:
+            rows.append([
+                p.name,
+                p.category.name if p.category else "",
+                ", ".join(t.name for t in p.tags.all()),
+                str(p.stock),
+                str(p.price),
+                str(p.average_cost),
+                {
+                    "detail": reverse("product_detail", args=[p.id]),
+                    "edit": reverse("product_edit", args=[p.id]),
+                    "toggle": reverse("product_toggle_active", args=[p.id]),
+                    "active": p.active,
+                    "next": request.get_full_path(),
+                },
+            ])
+        return rows
 
     context = {
-        "model": model_str,
-        "title": title,
-        "fields": fields,
-        "columns": columns,
-        "page_obj": page_obj,
+        "title": "Productos",
+        "tab": tab,
+        "headers_json": json.dumps(
+            ["Nombre", "Categoría", "Etiquetas", "Stock", "Precio",
+             "Costo Promedio", "Acciones"]
+        ),
+        "active_count": active_qs.count(),
+        "inactive_count": inactive_qs.count(),
+        "active_data_json": json.dumps(_serialize(active_qs)),
+        "inactive_data_json": json.dumps(_serialize(inactive_qs)),
+        "available_tags": list(Tag.objects.all().values("id", "name")),
+        "selected_tag": selected_tag,
+        "clear_url": request.path + "?tab=" + tab,
     }
-    return render(request, "list.html", context)
+    return render(request, "product_list.html", context)
 
 
 @login_required
-def generic_form_view(request, model_str, pk=None):
-    valid_models = {"category", "expense", "expensecategory",
-                    "otherincome", "otherincomecategory", "customer", "tag"}
-    if model_str not in valid_models:
-        raise Http404
+def purchase_list_view(request):
+    """Lista de facturas de compra con filtro por etiqueta."""
+    tag_id = request.GET.get("tag")
+    selected_tag = None
+    if tag_id and tag_id.isdigit():
+        selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
+    invoices = PurchaseInvoice.objects.all()
+    if selected_tag:
+        invoices = invoices.filter(items__product__tags=selected_tag).distinct()
 
-    model_name = MODEL_NAME_MAP.get(model_str, model_str.capitalize())
-    try:
-        model = apps.get_model("stock", model_name)
-    except LookupError:
-        raise Http404
+    rows = []
+    for inv in invoices:
+        rows.append([
+            inv.date.strftime("%d/%m/%Y"),
+            inv.supplier,
+            ", ".join(f"{i.quantity} × {i.product.name}" for i in inv.items.all()),
+            str(inv.get_total()),
+            {
+                "detail": reverse("purchase_invoice_detail", args=[inv.id]),
+                "edit": reverse("purchase_invoice_edit", args=[inv.id]),
+            },
+        ])
 
-    obj = get_object_or_404(model, pk=pk) if pk else None
-    title = "Editar " if obj else "Agregar nueva "
-    form_class = None
-    match model_str:
-        case "category":
-            form_class = CategoryForm
-            title += "Categoría"
-        case "expensecategory":
-            form_class = ExpenseCategoryForm
-            title += "Categoría de Gasto"
-        case "otherincomecategory":
-            form_class = OtherIncomeCategoryForm
-            title += "Categoría de Otro Ingreso"
-        case "expense":
-            form_class = ExpenseForm
-            title += "Gasto"
-        case "otherincome":
-            form_class = OtherIncomeForm
-            title += "Otro Ingreso"
-        case "customer":
-            form_class = CustomerForm
-            title += "Cliente"
-        case "tag":
-            form_class = TagForm
-            title += "Etiqueta"
+    context = {
+        "title": "Compras",
+        "headers_json": json.dumps(
+            ["Fecha", "Proveedor", "Productos", "Total", "Acciones"]
+        ),
+        "data_json": json.dumps(rows),
+        "available_tags": list(Tag.objects.all().values("id", "name")),
+        "selected_tag": selected_tag,
+        "clear_url": request.path,
+    }
+    return render(request, "purchase_list.html", context)
 
+
+@login_required
+def sale_list_view(request):
+    """Lista de facturas de venta con filtro por etiqueta."""
+    tag_id = request.GET.get("tag")
+    selected_tag = None
+    if tag_id and tag_id.isdigit():
+        selected_tag = Tag.objects.filter(pk=int(tag_id)).first()
+    invoices = SaleInvoice.objects.select_related("customer_obj").all()
+    if selected_tag:
+        invoices = invoices.filter(items__product__tags=selected_tag).distinct()
+
+    rows = []
+    for inv in invoices:
+        rows.append([
+            inv.date.strftime("%d/%m/%Y"),
+            inv.customer_obj.name,
+            ", ".join(f"{i.quantity} × {i.product.name}" for i in inv.items.all()),
+            str(inv.get_total()),
+            {
+                "detail": reverse("sale_invoice_detail", args=[inv.id]),
+                "edit": reverse("sale_invoice_edit", args=[inv.id]),
+            },
+        ])
+
+    context = {
+        "title": "Ventas",
+        "headers_json": json.dumps(
+            ["Fecha", "Cliente", "Productos", "Total", "Acciones"]
+        ),
+        "data_json": json.dumps(rows),
+        "available_tags": list(Tag.objects.all().values("id", "name")),
+        "selected_tag": selected_tag,
+        "clear_url": request.path,
+    }
+    return render(request, "sale_list.html", context)
+
+
+# ===== CRUD dedicado por modelo (vistas y templates propios) =====
+
+
+# --- Category ---
+
+@login_required
+def category_list_view(request):
+    rows = [
+        [c.name, {"edit": reverse("category_edit", args=[c.id])}]
+        for c in Category.objects.all()
+    ]
+    context = {
+        "title": "Categorías",
+        "headers_json": json.dumps(["Nombre", "Acciones"]),
+        "data_json": json.dumps(rows),
+    }
+    return render(request, "category_list.html", context)
+
+
+@login_required
+def category_form_view(request, pk=None):
+    obj = get_object_or_404(Category, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nueva ") + "Categoría"
     if request.method == "POST":
-        form = form_class(request.POST, instance=obj)
+        form = CategoryForm(request.POST, instance=obj)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Se ha guardado correctamente.")
-            return redirect("list", model_str=model_str) if pk else redirect("new", model_str=model_str)
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("category_list") if pk else redirect("category_new")
     else:
-        form = form_class(instance=obj)
+        form = CategoryForm(instance=obj)
+    return render(request, "category_form.html", {"title": title, "form": form})
 
+
+# --- Tag ---
+
+@login_required
+def tag_list_view(request):
+    rows = [
+        [t.name, {"edit": reverse("tag_edit", args=[t.id])}]
+        for t in Tag.objects.all()
+    ]
     context = {
-        "title": title,
-        "form": form,
+        "title": "Etiquetas",
+        "headers_json": json.dumps(["Nombre", "Acciones"]),
+        "data_json": json.dumps(rows),
     }
-    return render(request, "form.html", context)
+    return render(request, "tag_list.html", context)
+
+
+@login_required
+def tag_form_view(request, pk=None):
+    obj = get_object_or_404(Tag, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nueva ") + "Etiqueta"
+    if request.method == "POST":
+        form = TagForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("tag_list") if pk else redirect("tag_new")
+    else:
+        form = TagForm(instance=obj)
+    return render(request, "tag_form.html", {"title": title, "form": form})
+
+
+# --- ExpenseCategory ---
+
+@login_required
+def expensecategory_list_view(request):
+    rows = [
+        [ec.name, {"edit": reverse("expensecategory_edit", args=[ec.id])}]
+        for ec in ExpenseCategory.objects.all()
+    ]
+    context = {
+        "title": "Categorías de Gastos",
+        "headers_json": json.dumps(["Nombre", "Acciones"]),
+        "data_json": json.dumps(rows),
+    }
+    return render(request, "expensecategory_list.html", context)
+
+
+@login_required
+def expensecategory_form_view(request, pk=None):
+    obj = get_object_or_404(ExpenseCategory, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nueva ") + "Categoría de Gasto"
+    if request.method == "POST":
+        form = ExpenseCategoryForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("expensecategory_list") if pk else redirect("expensecategory_new")
+    else:
+        form = ExpenseCategoryForm(instance=obj)
+    return render(request, "expensecategory_form.html", {"title": title, "form": form})
+
+
+# --- OtherIncomeCategory ---
+
+@login_required
+def otherincomecategory_list_view(request):
+    rows = [
+        [oic.name, {"edit": reverse("otherincomecategory_edit", args=[oic.id])}]
+        for oic in OtherIncomeCategory.objects.all()
+    ]
+    context = {
+        "title": "Categorías de Otros Ingresos",
+        "headers_json": json.dumps(["Nombre", "Acciones"]),
+        "data_json": json.dumps(rows),
+    }
+    return render(request, "otherincomecategory_list.html", context)
+
+
+@login_required
+def otherincomecategory_form_view(request, pk=None):
+    obj = get_object_or_404(OtherIncomeCategory, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nueva ") + "Categoría de Otro Ingreso"
+    if request.method == "POST":
+        form = OtherIncomeCategoryForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("otherincomecategory_list") if pk else redirect("otherincomecategory_new")
+    else:
+        form = OtherIncomeCategoryForm(instance=obj)
+    return render(request, "otherincomecategory_form.html", {"title": title, "form": form})
+
+
+# --- Customer ---
+
+@login_required
+def customer_list_view(request):
+    rows = []
+    for c in Customer.objects.select_related("department"):
+        rows.append([
+            c.name,
+            c.whatsapp or "",
+            c.department.name if c.department else "",
+            "Sí" if c.active else "No",
+            {"edit": reverse("customer_edit", args=[c.id])},
+        ])
+    context = {
+        "title": "Clientes",
+        "headers_json": json.dumps(
+            ["Nombre", "WhatsApp", "Departamento", "Activo", "Acciones"]
+        ),
+        "data_json": json.dumps(rows),
+    }
+    return render(request, "customer_list.html", context)
+
+
+@login_required
+def customer_form_view(request, pk=None):
+    obj = get_object_or_404(Customer, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nuevo ") + "Cliente"
+    if request.method == "POST":
+        form = CustomerForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("customer_list") if pk else redirect("customer_new")
+    else:
+        form = CustomerForm(instance=obj)
+    return render(request, "customer_form.html", {"title": title, "form": form})
+
+
+# --- Expense ---
+
+@login_required
+def expense_list_view(request):
+    rows = []
+    for e in Expense.objects.select_related("category"):
+        rows.append([
+            e.date.strftime("%d/%m/%Y"),
+            e.category.name if e.category else "",
+            e.description or "",
+            str(e.amount),
+            {"edit": reverse("expense_edit", args=[e.id])},
+        ])
+    context = {
+        "title": "Gastos",
+        "headers_json": json.dumps(
+            ["Fecha", "Categoría", "Descripción", "Monto", "Acciones"]
+        ),
+        "data_json": json.dumps(rows),
+    }
+    return render(request, "expense_list.html", context)
+
+
+@login_required
+def expense_form_view(request, pk=None):
+    obj = get_object_or_404(Expense, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nuevo ") + "Gasto"
+    if request.method == "POST":
+        form = ExpenseForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("expense_list") if pk else redirect("expense_new")
+    else:
+        form = ExpenseForm(instance=obj)
+    return render(request, "expense_form.html", {"title": title, "form": form})
+
+
+# --- OtherIncome ---
+
+@login_required
+def otherincome_list_view(request):
+    rows = []
+    for oi in OtherIncome.objects.select_related("category"):
+        rows.append([
+            oi.date.strftime("%d/%m/%Y"),
+            oi.category.name if oi.category else "",
+            oi.description or "",
+            str(oi.amount),
+            {"edit": reverse("otherincome_edit", args=[oi.id])},
+        ])
+    context = {
+        "title": "Otros Ingresos",
+        "headers_json": json.dumps(
+            ["Fecha", "Categoría", "Descripción", "Monto", "Acciones"]
+        ),
+        "data_json": json.dumps(rows),
+    }
+    return render(request, "otherincome_list.html", context)
+
+
+@login_required
+def otherincome_form_view(request, pk=None):
+    obj = get_object_or_404(OtherIncome, pk=pk) if pk else None
+    title = ("Editar " if obj else "Agregar nuevo ") + "Otro Ingreso"
+    if request.method == "POST":
+        form = OtherIncomeForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Se ha guardado correctamente.")
+            return redirect("otherincome_list") if pk else redirect("otherincome_new")
+    else:
+        form = OtherIncomeForm(instance=obj)
+    return render(request, "otherincome_form.html", {"title": title, "form": form})
 
 
 @login_required
@@ -340,7 +457,7 @@ def product_detail_view(request, pk):
         "title": f"{product.name}",
         "product": product,
         "edit_url": reverse("product_edit", args=[product.id]),
-        "list_url": reverse("list", args=["product"]),
+        "list_url": reverse("product_list"),
         "inventory_value": product.stock * product.average_cost,
         "unit_margin": unit_margin,
         "margin_pct": margin_pct,
@@ -364,7 +481,7 @@ def product_toggle_active(request, pk):
     verb = "activado" if product.active else "desactivado"
     messages.success(request, f"Producto {verb} correctamente.")
 
-    next_url = request.POST.get("next") or reverse("list", args=["product"])
+    next_url = request.POST.get("next") or reverse("product_list")
     return redirect(next_url)
 
 
@@ -459,7 +576,7 @@ def purchase_invoice_detail_view(request, pk):
         "party": invoice.supplier,
         "kind": "purchase",
         "edit_url": reverse("purchase_invoice_edit", args=[invoice.id]),
-        "list_url": reverse("list", args=["purchase"]),
+        "list_url": reverse("purchase_list"),
     }
     return render(request, "invoice_detail.html", context)
 
@@ -475,7 +592,7 @@ def sale_invoice_detail_view(request, pk):
         "party": invoice.customer_obj.name,
         "kind": "sale",
         "edit_url": reverse("sale_invoice_edit", args=[invoice.id]),
-        "list_url": reverse("list", args=["sale"]),
+        "list_url": reverse("sale_list"),
     }
     return render(request, "invoice_detail.html", context)
 
@@ -872,12 +989,20 @@ def import_data(request):
     return render(request, "import_form.html")
 
 
+# Períodos comunes de los reportes
+REPORT_PERIODS = [
+    ("hoy", "Hoy"),
+    ("semana", "Semana"),
+    ("mes", "Mes"),
+    ("semestre", "Semestre"),
+    ("año", "Año"),
+    ("total", "Total"),
+]
+
+
 @login_required
 def top_products_view(request, period='mes'):
-    """
-    Vista para mostrar productos más vendidos.
-    Periodos: hoy, semana, mes, total
-    """
+    """Top de productos vendidos en un período."""
     today = now().date()
     week_date = today - timedelta(days=7)
     month_start = today.replace(day=1)
@@ -915,48 +1040,32 @@ def top_products_view(request, period='mes'):
         .order_by('-total_revenue')
     )
 
-    total_revenue_all = top_products.aggregate(Sum('total_revenue'))['total_revenue__sum'] or 0
+    total_revenue_all = sum(r["total_revenue"] or 0 for r in top_products)
 
-    class TopProduct:
-        def __init__(self, pk, product_name, category_name,
-                     total_sold, total_revenue, percentage):
-            self.id = pk
-            self.product_name = product_name
-            self.category_name = category_name or "Sin categoría"
-            self.total_sold = total_sold
-            self.total_revenue = total_revenue
-            self.percentage = percentage
-            self.percentage_display = f"{percentage:.2f}%"
-
-    products_list = []
-    for idx, item in enumerate(top_products, start=1):
-        percentage = (item['total_revenue'] / total_revenue_all * 100
+    rows = []
+    for item in top_products:
+        revenue = item['total_revenue'] or 0
+        percentage = (revenue / total_revenue_all * 100
                       if total_revenue_all > 0 else 0)
-        product = TopProduct(
-            pk=idx,
-            product_name=item['product__name'],
-            category_name=item['product__category__name'],
-            total_sold=item['total_sold'],
-            total_revenue=item['total_revenue'],
-            percentage=percentage
-        )
-        products_list.append(product)
-
-    fields = ["Producto", "Categoría", "Cantidad Vendida",
-              "Ingresos Totales", "% por Ingresos"]
-    columns = ["product_name", "category_name", "total_sold",
-               "total_revenue", "percentage_display"]
+        rows.append([
+            item['product__name'],
+            item['product__category__name'] or "Sin categoría",
+            str(item['total_sold']),
+            str(revenue),
+            f"{percentage:.2f}%",
+        ])
 
     context = {
         'title': title,
-        'model': 'product',
-        'fields': fields,
-        'columns': columns,
-        'page_obj': products_list,
-        'show_actions': False,
+        'headers_json': json.dumps(
+            ["Producto", "Categoría", "Cantidad Vendida",
+             "Ingresos Totales", "% por Ingresos"]
+        ),
+        'data_json': json.dumps(rows),
+        'period': period,
+        'periods': REPORT_PERIODS,
     }
-
-    return render(request, 'list.html', context)
+    return render(request, 'top_products.html', context)
 
 
 @login_required
@@ -994,39 +1103,29 @@ def sales_by_department(request, period='mes'):
 
     total_revenue_all = sum(r["total_revenue"] or 0 for r in rows)
 
-    class DeptRow:
-        def __init__(self, idx, department_name, total_sold, total_revenue, percentage):
-            self.id = idx
-            self.department_name = department_name or "Sin departamento"
-            self.total_sold = total_sold
-            self.total_revenue = total_revenue
-            self.percentage = percentage
-            self.percentage_display = f"{percentage:.2f}%"
-
     items = []
-    for idx, item in enumerate(rows, start=1):
+    for item in rows:
+        total_revenue = item["total_revenue"] or 0
         percentage = (
-            (item["total_revenue"] / total_revenue_all * 100)
+            (total_revenue / total_revenue_all * 100)
             if total_revenue_all else 0
         )
-        items.append(DeptRow(
-            idx,
-            item["invoice__customer_obj__department__name"],
-            item["total_sold"],
-            item["total_revenue"],
-            percentage,
-        ))
+        items.append([
+            item["invoice__customer_obj__department__name"] or "Sin departamento",
+            str(item["total_sold"]),
+            str(total_revenue),
+            f"{percentage:.2f}%",
+        ])
 
-    fields = ["Departamento", "Unidades Vendidas", "Ingresos Totales", "% por Ingresos"]
-    columns = ["department_name", "total_sold", "total_revenue", "percentage_display"]
-
-    return render(request, "list.html", {
+    return render(request, "sales_by_department.html", {
         "title": title,
-        "model": "department",
-        "fields": fields,
-        "columns": columns,
-        "page_obj": items,
-        "show_actions": False,
+        "headers_json": json.dumps(
+            ["Departamento", "Unidades Vendidas", "Ingresos Totales",
+             "% por Ingresos"]
+        ),
+        "data_json": json.dumps(items),
+        "period": period,
+        "periods": REPORT_PERIODS,
     })
 
 
@@ -1065,39 +1164,27 @@ def sales_by_tag(request, period='mes'):
 
     total_revenue_all = sum(r["total_revenue"] or 0 for r in rows)
 
-    class TagRow:
-        def __init__(self, idx, tag_id, tag_name, total_sold, total_revenue, percentage):
-            self.id = idx
-            self.tag_id = tag_id
-            self.tag_name = tag_name or "Sin etiqueta"
-            self.total_sold = total_sold
-            self.total_revenue = total_revenue
-            self.percentage = percentage
-            self.percentage_display = f"{percentage:.2f}%"
-
     items = []
-    for idx, item in enumerate(rows, start=1):
+    for item in rows:
+        total_revenue = item["total_revenue"] or 0
         percentage = (
-            (item["total_revenue"] / total_revenue_all * 100)
+            (total_revenue / total_revenue_all * 100)
             if total_revenue_all else 0
         )
-        items.append(TagRow(
-            idx,
-            item["product__tags__id"],
-            item["product__tags__name"],
-            item["total_sold"],
-            item["total_revenue"],
-            percentage,
-        ))
+        items.append([
+            item["product__tags__name"] or "Sin etiqueta",
+            str(item["total_sold"]),
+            str(total_revenue),
+            f"{percentage:.2f}%",
+        ])
 
-    fields = ["Etiqueta", "Unidades Vendidas", "Ingresos Totales", "% por Ingresos"]
-    columns = ["tag_name", "total_sold", "total_revenue", "percentage_display"]
-
-    return render(request, "list.html", {
+    return render(request, "sales_by_tag.html", {
         "title": title,
-        "model": "tag",
-        "fields": fields,
-        "columns": columns,
-        "page_obj": items,
-        "show_actions": False,
+        "headers_json": json.dumps(
+            ["Etiqueta", "Unidades Vendidas", "Ingresos Totales",
+             "% por Ingresos"]
+        ),
+        "data_json": json.dumps(items),
+        "period": period,
+        "periods": REPORT_PERIODS,
     })

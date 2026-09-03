@@ -61,8 +61,8 @@ etiqueta.
 - `Meta.ordering = ['name']`
 - `__str__` → `self.name`
 
-> El gestor CRUD vive bajo `/tag/` (CRUD genérico). Ver
-> [`docs/vistas-y-urls.md`](vistas-y-urls.md).
+> El gestor CRUD vive bajo `/tag/` (vista dedicada `tag_list_view`).
+> Ver [`docs/vistas-y-urls.md`](vistas-y-urls.md).
 
 ## ExpenseCategory
 

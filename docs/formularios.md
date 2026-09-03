@@ -76,7 +76,8 @@ class CustomerForm(forms.ModelForm):
         }
 ```
 
-Se usa en el CRUD genérico (`generic_form_view` con `model_str="customer"`).
+Se usa en la vista dedicada (`customer_form_view`, con su template
+`customer_form.html`).
 No tiene validación rígida del whatsapp (Nicaragua usa `+505` + 8 dígitos,
 pero no queremos romper entradas con prefijos de otros países).
 
@@ -146,7 +147,8 @@ manejan `POST` con esta secuencia:
 3. Aplica con `python manage.py migrate`.
 4. Añade el campo a `Meta.fields` del form correspondiente en
    `stock/forms.py`.
-5. **Si el campo debe renderizarse en `list.html`** (Grid.js), sigue
+5. **Si el campo debe verse en la lista** (Grid.js), actualiza la
+   serialización de la vista `<m>_list_view` correspondiente y sigue
    las instrucciones de
    [`docs/mantenimiento.md`](mantenimiento.md#nuevo-campo-en-un-modelo-existente).
 6. **Si quieres widgets personalizados**, usa `Meta.widgets` igual que
@@ -156,13 +158,11 @@ manejan `POST` con esta secuencia:
 
 1. Modelo en `stock/models.py` + migración.
 2. `ModelForm` en `stock/forms.py`.
-3. Decide si va por el CRUD genérico o por una vista dedicada.
-   - **Genérico**: añade el `case` en `generic_list_view` y
-     `generic_form_view`, extiende los `valid_models`, y la URL en
-     `stock/urls.py`. Detalles en
-     [`docs/vistas-y-urls.md`](vistas-y-urls.md#añadir-un-nuevo-modelo-crud-simple).
-   - **Dedicado**: crea una vista en `views.py` y rutas explícitas en
-     `urls.py`.
+3. Crea la vista dedicada que lo use (la app ya no tiene CRUD
+   genérico): `<m>_form_view` en `views.py`, las rutas `path()` en
+   `stock/urls.py` y el template `<m>_form.html`. Detalles y
+   convención de nombres en
+   [`docs/vistas-y-urls.md`](vistas-y-urls.md#convención-de-nombres).
 4. Si el form es complejo (formset, AJAX, lógica custom), crea un
    template propio y referéncialo en la vista.
 5. Documenta el cambio.

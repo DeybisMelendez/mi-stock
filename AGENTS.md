@@ -34,7 +34,7 @@ There is no lint/typecheck/formatter config in the repo. CI: none.
 ## Architecture notes worth knowing
 
 - **Stock/cost logic lives in model `save()`/`delete()` overrides**, not in views or signals. `Purchase.save` and `Sale.save` mutate `Product.stock` and `Product.average_cost` (average-cost accounting), and carefully revert old values when editing. Any change to these flows must preserve the revert-then-apply logic or the inventory will drift. See `stock/models.py`.
-- **Generic views by model string**: `stock/urls.py` routes `category|product|sale|purchase|expense` through one `generic_list_view` / `generic_form_view` keyed by `model_str`. Add new simple CRUD models by extending that regex set and the associated `apps.get_model` map, not by writing per-model views.
+- **Dedicated views per model**: every simple CRUD model (`category`, `tag`, `expensecategory`, `otherincomecategory`, `customer`, `expense`, `otherincome`) has its own `<m>_list_view` / `<m>_form_view`, three explicit `path()` routes (`/m/`, `/m/new/`, `/m/<pk>/edit/`) and its own `<m>_list.html` / `<m>_form.html` templates. There is no generic view system — add new simple CRUD models by following that same per-model pattern (see `docs/vistas-y-urls.md`).
 - **Invoices use inline formsets**: `purchase_invoice_form_view` / `sale_invoice_form_view` build `PurchaseItemFormSet` / `SaleItemFormSet` via `inlineformset_factory`. Edit both the invoice form and the item formset together.
 - **All views are `@login_required`**. Auth URLs live at `/accounts/` via `django.contrib.auth.urls`; `LOGIN_REDIRECT_URL = '/'`.
 - URL slugs are in Spanish (`compras/`, `ventas/`, `resultados/`, `exportar/`, `importar/`). Locale is `es-ni`, timezone `America/Managua`.
@@ -42,7 +42,7 @@ There is no lint/typecheck/formatter config in the repo. CI: none.
 
 ## Templates convention
 
-`stock/templatetags/getattribute.py` provides a `getattribute` filter used to dynamic-attribute access in the generic list/form templates — keep it in mind when adding fields to models that the generic templates render by name.
+`stock/templatetags/getattribute.py` provides the `markdown_safe` filter (markdown → sanitized HTML for `product_detail.html`). List views serialize rows in Python (`headers_json` / `data_json`) and delegate the Grid.js table to the `includes/grid_table.html` partial.
 
 ## Documentation
 

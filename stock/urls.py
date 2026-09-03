@@ -1,4 +1,4 @@
-from django.urls import path, re_path
+from django.urls import path
 from django.http import HttpResponseNotFound
 from . import views
 from . import api
@@ -11,13 +11,31 @@ urlpatterns = [
     path("favicon.ico", lambda request: HttpResponseNotFound()),
     path("top-productos/<str:period>/", views.top_products_view, name="top_products_period"),
     path("top-productos/", views.top_products_view, {"period": "mes"}, name="top_products"),
-    re_path(r"^(?P<model_str>category|product|sale|purchase|expense|expensecategory|otherincome|otherincomecategory|customer|tag)$",
-            views.generic_list_view, name="list"),
-    # CRUD genérico para modelos simples (excepto product, que usa su propia vista)
-    re_path(r"^(?P<model_str>category|expense|expensecategory|otherincome|otherincomecategory|customer|tag)/new$",
-            views.generic_form_view, name="new"),
-    re_path(r"^(?P<model_str>category|expense|expensecategory|otherincome|otherincomecategory|customer|tag)/(?P<pk>\d+)/edit$",
-            views.generic_form_view, name="edit"),
+    # CRUD dedicado (vistas y templates propios por modelo)
+    path("category/", views.category_list_view, name="category_list"),
+    path("category/new/", views.category_form_view, name="category_new"),
+    path("category/<int:pk>/edit/", views.category_form_view, name="category_edit"),
+    path("tag/", views.tag_list_view, name="tag_list"),
+    path("tag/new/", views.tag_form_view, name="tag_new"),
+    path("tag/<int:pk>/edit/", views.tag_form_view, name="tag_edit"),
+    path("expensecategory/", views.expensecategory_list_view, name="expensecategory_list"),
+    path("expensecategory/new/", views.expensecategory_form_view, name="expensecategory_new"),
+    path("expensecategory/<int:pk>/edit/", views.expensecategory_form_view, name="expensecategory_edit"),
+    path("otherincomecategory/", views.otherincomecategory_list_view, name="otherincomecategory_list"),
+    path("otherincomecategory/new/", views.otherincomecategory_form_view, name="otherincomecategory_new"),
+    path("otherincomecategory/<int:pk>/edit/", views.otherincomecategory_form_view, name="otherincomecategory_edit"),
+    path("customer/", views.customer_list_view, name="customer_list"),
+    path("customer/new/", views.customer_form_view, name="customer_new"),
+    path("customer/<int:pk>/edit/", views.customer_form_view, name="customer_edit"),
+    path("expense/", views.expense_list_view, name="expense_list"),
+    path("expense/new/", views.expense_form_view, name="expense_new"),
+    path("expense/<int:pk>/edit/", views.expense_form_view, name="expense_edit"),
+    path("otherincome/", views.otherincome_list_view, name="otherincome_list"),
+    path("otherincome/new/", views.otherincome_form_view, name="otherincome_new"),
+    path("otherincome/<int:pk>/edit/", views.otherincome_form_view, name="otherincome_edit"),
+    path("product/", views.product_list_view, name="product_list"),
+    path("compras/", views.purchase_list_view, name="purchase_list"),
+    path("ventas/", views.sale_list_view, name="sale_list"),
     # Producto con marca y fotos
     path("product/new/", views.product_form_view, name="product_new"),
     path("product/<int:pk>/", views.product_detail_view, name="product_detail"),

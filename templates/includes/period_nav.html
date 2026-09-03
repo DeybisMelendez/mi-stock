@@ -1,0 +1,15 @@
+{% comment %} Parcial reutilizable: navegación entre períodos de un reporte.
+Parámetros (usar con `only`):
+- url_name: nombre de URL que recibe `<str:period>` (o dict con default)
+- period: período actual
+- periods: lista de pares (clave, etiqueta)
+{% endcomment %}
+<nav class="d-flex gap-2 flex-wrap">
+  {% for key, label in periods %}
+  {% if key == period %}
+  <a href="{% url url_name key %}" aria-current="page"><strong>{{ label }}</strong></a>
+  {% else %}
+  <a href="{% url url_name key %}">{{ label }}</a>
+  {% endif %}
+  {% endfor %}
+</nav>

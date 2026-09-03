@@ -16,75 +16,48 @@ path('accounts/', include('django.contrib.auth.urls')),
 path("", include("stock.urls")),
 ```
 
-`stock/urls.py` define todas las rutas de la app. Hay dos patrones:
+`stock/urls.py` define todas las rutas de la app con `path()` explícitos.
+**No hay vistas genéricas ni regex**: cada modelo simple tiene su vista
+de lista, su vista de formulario y sus tres rutas propias.
 
-1. **Rutas explícitas** (`path`) para vistas dedicadas con URL propia
-   (`home`, facturas, producto, importar, exportar).
-2. **Regex con `re_path`** para el CRUD genérico de modelos simples
-   (`category`, `expense`, `expensecategory`, `otherincome`,
-   `otherincomecategory`).
+## Convención de nombres
 
-## El truco del CRUD genérico
+Para cada modelo CRUD simple `m` (en minúsculas, p. ej. `category`):
 
-`generic_list_view` y `generic_form_view` resuelven el modelo a partir
-de un `model_str` capturado por regex. Internamente usan
-`MODEL_NAME_MAP` (en `views.py`):
+| Elemento | Patrón | Ejemplo |
+|---|---|---|
+| Vista de lista | `<m>_list_view` | `category_list_view` |
+| Vista de formulario | `<m>_form_view` | `expense_form_view` |
+| Nombre URL lista | `<m>_list` | `tag_list` |
+| Nombre URL crear | `<m>_new` | `customer_new` |
+| Nombre URL editar | `<m>_edit` | `expense_edit` |
+| Template lista | `<m>_list.html` | `category_list.html` |
+| Template formulario | `<m>_form.html` | `tag_form.html` |
 
-```python
-MODEL_NAME_MAP = {
-    "purchase": "PurchaseInvoice",
-    "sale": "SaleInvoice",
-    "expensecategory": "ExpenseCategory",
-    "otherincome": "OtherIncome",
-    "otherincomecategory": "OtherIncomeCategory",
-    "tag": "Tag",
-}
-```
+Las URLs siguen el patrón `/m/`, `/m/new/`, `/m/<pk>/edit/` (con slash
+final, consistente con las vistas dedicadas históricas).
 
-Si `model_str` no está en el mapa, se usa `model_str.capitalize()`
-(`"category"` → `Category`, `"expense"` → `Expense`, `"customer"` →
-`Customer`, etc.).
+Las vistas de lista serializan las filas **en Python** (no en el
+template): cada vista construye `headers_json` (encabezados) y
+`data_json` (filas como arrays; la última celda es un objeto de
+acciones `{"detail": ..., "edit": ...}` cuando aplica) y se los pasa al
+parcial `includes/grid_table.html`, que monta Grid.js. Ver
+[`frontend.md`](frontend.md).
 
-La vista hace:
-
-```python
-model = apps.get_model("stock", model_name)
-```
-
-Y luego un `match model_str:` selecciona `fields`, `columns`, `title` y
-cómo serializar las filas.
-
-### `valid_models` en cada vista
-
-- `generic_list_view` admite:
-  `category`, `product`, `sale`, `purchase`, `expense`,
-  `expensecategory`, `otherincome`, `otherincomecategory`,
-  `customer`, `tag`.
-- `generic_form_view` admite:
-  `category`, `expense`, `expensecategory`,
-  `otherincome`, `otherincomecategory`, `customer`, `tag`.
-
-> **`product`, `purchase` y `sale` no entran al CRUD genérico de
-> formularios**: tienen vistas dedicadas con formularios más complejos
-> (formset de fotos, formset de líneas, galería, etc.).
-
-### Añadir un nuevo modelo CRUD simple
+## Añadir un nuevo modelo CRUD simple
 
 1. Crear el modelo en `stock/models.py`.
 2. Crear el `ModelForm` en `stock/forms.py`.
 3. Registrarlo en el admin (`stock/admin.py`).
 4. Añadir la migración: `python manage.py makemigrations stock`.
-5. **Actualizar `views.py`**:
-   - Si la clave difiere del nombre capitalizado, añadir a
-     `MODEL_NAME_MAP`.
-   - En `generic_list_view.match`, añadir un `case` con `fields`,
-     `columns`, `title`, `queryset`, `page_obj`.
-   - En `generic_form_view.match`, añadir un `case` con `form_class`
-     y `title`.
-   - Añadir el `model_str` a los `valid_models` de ambas vistas.
-6. **Actualizar `urls.py`**: añadir el `model_str` a los dos
-   `re_path` (list y form).
-7. Documentar en [`docs/modelos.md`](modelos.md),
+5. **Crear las vistas dedicadas** en `views.py`:
+   `<m>_list_view` (serializa filas a `headers_json`/`data_json`) y
+   `<m>_form_view` (patrón: `pk=None` crea, `pk` edita).
+6. **Crear los templates** `<m>_list.html` y `<m>_form.html`
+   (reutilizando el parcial `grid_table.html`).
+7. **Actualizar `urls.py`**: las tres rutas `path()` explícitas.
+8. Añadir el enlace al menú en `templates/layout.html`.
+9. Documentar en [`docs/modelos.md`](modelos.md),
    [`docs/vistas-y-urls.md`](vistas-y-urls.md) y
    [`docs/mantenimiento.md`](mantenimiento.md).
 
@@ -100,9 +73,16 @@ cómo serializar las filas.
 | `/api/products/<pk>/` | `api_product_detail` | `api_product_detail` | API pública: detalle de producto (ver [`api.md`](api.md)) |
 | `/top-productos/<period>/` | `top_products_period` | `top_products_view` | Top productos por período (ver abajo) |
 | `/top-productos/` | `top_products` | `top_products_view` | Top productos del mes (default `period="mes"`) |
-| `/<model_str>/` | `list` | `generic_list_view` | Lista genérica del modelo |
-| `/<model_str>/new` | `new` | `generic_form_view` | Crear genérico |
-| `/<model_str>/<pk>/edit` | `edit` | `generic_form_view` | Editar genérico |
+| `/product/` | `product_list` | `product_list_view` | Lista de productos con tabs activos/inactivos |
+| `/category/` | `category_list` | `category_list_view` | Lista de categorías |
+| `/tag/` | `tag_list` | `tag_list_view` | Lista de etiquetas |
+| `/customer/` | `customer_list` | `customer_list_view` | Lista de clientes |
+| `/expensecategory/` | `expensecategory_list` | `expensecategory_list_view` | Lista de categorías de gastos |
+| `/otherincomecategory/` | `otherincomecategory_list` | `otherincomecategory_list_view` | Lista de categorías de otros ingresos |
+| `/expense/` | `expense_list` | `expense_list_view` | Lista de gastos |
+| `/otherincome/` | `otherincome_list` | `otherincome_list_view` | Lista de otros ingresos |
+| `/compras/` | `purchase_list` | `purchase_list_view` | Lista de facturas de compra |
+| `/ventas/` | `sale_list` | `sale_list_view` | Lista de facturas de venta |
 | `/product/new/` | `product_new` | `product_form_view` | Crear producto con fotos |
 | `/product/<pk>/` | `product_detail` | `product_detail_view` | Detalle de producto |
 | `/product/<pk>/edit/` | `product_edit` | `product_form_view` | Editar producto con fotos |
@@ -123,10 +103,14 @@ cómo serializar las filas.
 | `/exportar/` | `export_data` | `export_data` | Descargar backup JSON |
 | `/importar/` | `import_data` | `import_data` | Subir backup JSON |
 
-`model_str` válido para CRUD genérico: `category`, `product`, `sale`,
-`purchase`, `expense`, `expensecategory`, `otherincome`,
-`otherincomecategory`, `customer`, `tag`. Para formularios, ver lista
-arriba.
+Para cada modelo simple `m` de
+`category`, `tag`, `customer`, `expensecategory`,
+`otherincomecategory`, `expense`, `otherincome` existen además:
+
+| URL | Nombre | Vista |
+|---|---|---|
+| `/m/new/` | `m_new` | `m_form_view` |
+| `/m/<pk>/edit/` | `m_edit` | `m_form_view` |
 
 ---
 
@@ -142,6 +126,30 @@ La referencia completa (formato, ejemplos, CORS) está en
 [`api.md`](api.md).
 
 ---
+
+## Vistas CRUD de modelos simples
+
+Cada uno de los 7 modelos simples tiene un par de vistas dedicadas que
+siguen el mismo patrón (ver "Convención de nombres"):
+
+- **Lista** (`<m>_list_view`): consulta el modelo, serializa cada fila
+  a un array de strings y añade como última celda el objeto de acciones
+  `{"edit": ...}`. Renderiza su template `<m>_list.html`, que coloca el
+  botón "Nuevo" y delega la tabla al parcial `grid_table.html`.
+- **Formulario** (`<m>_form_view`, `pk=None`): un `ModelForm` del
+  modelo. Tras POST válido muestra `messages.success` y redirige:
+  - Si **editaba** (`pk` presente): a la lista del modelo.
+  - Si **creaba** (`pk` ausente): al formulario vacío (flujo batch de
+    "crear varios seguidos").
+
+Particularidades por modelo:
+
+- `category`, `tag`, `expensecategory`, `otherincomecategory`: lista de
+  una sola columna (`name`); formulario de un campo.
+- `customer`: lista con `Nombre`, `WhatsApp`, `Departamento` y `Activo`
+  (serializado como "Sí"/"No"); usa `select_related("department")`.
+- `expense` / `otherincome`: lista con `Fecha` (`dd/mm/YYYY`),
+  `Categoría`, `Descripción`, `Monto`; usa `select_related("category")`.
 
 ## Vistas dedicadas
 
@@ -168,27 +176,22 @@ Calcula y devuelve al template `home.html`:
 - **Tendencia mensual** (12 meses hacia atrás): ingresos por mes con
   `TruncMonth`.
 
-### `generic_list_view(request, model_str)`
+### `product_list_view(request)`
 
-Ver sección "El truco del CRUD genérico" arriba. Particularidades:
+Lista de productos con dos tabs (activos / inactivos) controlados por
+AlpineJS y filtro opcional `?tag=<id>`. Serializa cada tab a JSON
+(`active_data_json` / `inactive_data_json`); la última celda de cada
+fila lleva el objeto de acciones `{"detail", "edit", "toggle", "active",
+"next"}` que el parcial Grid.js convierte en iconos (ver + editar +
+mini-form POST de activar/desactivar). Renderiza `product_list.html`.
 
-- `purchase` y `sale` se serializan manualmente como filas de
-  `[{id, date, party, items_summary, total}]` con totales agregados.
-- `product` se serializa por separado para dos tabs (activos /
-  inactivos), cada uno como JSON listo para Grid.js. La serialización
-  maneja accesos anidados tipo `category__name` recorriendo partes.
+### `purchase_list_view(request)` / `sale_list_view(request)`
 
-### `generic_form_view(request, model_str, pk=None)`
-
-`pk=None` → crear; `pk=int` → editar. Tras un POST válido:
-
-- Si venía de **editar** (`pk` presente): redirige a la lista
-  (`redirect("list", model_str=model_str)`). Los modelos del CRUD
-  genérico no tienen vista de detalle, así que la lista es la pantalla
-  natural para confirmar el cambio.
-- Si venía de **crear** (`pk` ausente): redirige al formulario vacío
-  (`redirect("new", model_str=model_str)`), igual que antes, para
-  permitir el flujo batch de "crear varios seguidos".
+Listas de facturas. Cada fila serializa `Fecha` (`dd/mm/YYYY`), parte
+(`supplier` o `customer_obj.name`), resumen de líneas
+(`cantidad × producto`) y total. Aceptan filtro opcional `?tag=<id>`
+(facturas con al menos una línea cuyo producto tenga la etiqueta).
+Renderizan `purchase_list.html` / `sale_list.html`.
 
 ### `product_form_view(request, pk=None)`
 
@@ -294,9 +297,10 @@ Top productos vendidos en un período. `period` puede ser:
 - `"total"` — todo el histórico
 
 Agrupa por producto, suma cantidad e ingresos (`quantity * price`),
-calcula el porcentaje sobre el total y los serializa como `TopProduct`
-(una clase interna con campos pre-formateados). Renderiza `list.html`
-con `show_actions=False`.
+calcula el porcentaje sobre el total y serializa las filas a
+`data_json`. Renderiza `top_products.html` con el parcial
+`grid_table.html` (`no_actions=True`, sin columna de acciones) y el
+parcial `period_nav.html` para saltar entre períodos.
 
 ### `sales_by_department(request, period='mes')`
 
@@ -311,9 +315,9 @@ facturas; las que tienen como cliente el "Cliente Genérico" sin
 departamento quedan agrupadas bajo "Sin departamento".
 
 Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
-`list.html` con `show_actions=False`, sin acciones de edición.
-Devuelve columnas: `Departamento`, `Unidades Vendidas`, `Ingresos
-Totales`, `% por Ingresos`.
+`sales_by_department.html` con `grid_table.html` (`no_actions=True`,
+sin acciones de edición) y `period_nav.html`. Columnas: `Departamento`,
+`Unidades Vendidas`, `Ingresos Totales`, `% por Ingresos`.
 
 ### `sales_by_tag(request, period='mes')`
 
@@ -328,26 +332,29 @@ asignada (`product__tags__isnull=False`).
 > etiqueta no hay forma útil de agruparlas.
 
 Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
-`list.html` con `show_actions=False`. Columnas: `Etiqueta`,
-`Unidades Vendidas`, `Ingresos Totales`, `% por Ingresos`.
+`sales_by_tag.html` con `grid_table.html` (`no_actions=True`) y
+`period_nav.html`. Columnas: `Etiqueta`, `Unidades Vendidas`,
+`Ingresos Totales`, `% por Ingresos`.
 
-### Filtro `?tag=<id>` en `/product/` y `/sale/`
+### Filtro `?tag=<id>` en `/product/`, `/compras/` y `/ventas/`
 
-Las listas de productos y ventas aceptan el parámetro `tag` (id de
-`Tag`). Si está presente y la etiqueta existe:
+Las listas de productos, compras y ventas aceptan el parámetro `tag`
+(id de `Tag`). Si está presente y la etiqueta existe:
 
-- **`/product?tag=<id>`**: muestra solo productos que tengan esa
+- **`/product/?tag=<id>`**: muestra solo productos que tengan esa
   etiqueta (la columna "Etiquetas" sigue apareciendo, ahora más
   relevante para identificar el grupo filtrado).
-- **`/sale?tag=<id>`**: muestra solo facturas que tengan al menos
-  una línea cuyo producto tenga esa etiqueta (`items__product__tags`).
+- **`/compras/?tag=<id>`** y **`/ventas/?tag=<id>`**: muestran solo
+  facturas que tengan al menos una línea cuyo producto tenga esa
+  etiqueta (`items__product__tags`).
 
-El template `list.html` muestra una barra con un selector de
-etiquetas arriba de la tabla cuando hay `available_tags` en el
-contexto. Si hay una etiqueta seleccionada, aparece un enlace "Limpiar
-filtro" junto al selector. En la lista de productos el selector
-convive con los tabs activos/inactivos (preserva el `?tab=...` al
-cambiar la etiqueta y viceversa).
+El parcial `includes/tag_filter.html` (incluido por
+`product_list.html`, `purchase_list.html` y `sale_list.html`) muestra
+la barra con el selector de etiquetas. Si hay una etiqueta
+seleccionada, aparece un enlace "Limpiar filtro" junto al selector. En
+la lista de productos el selector convive con los tabs activos/
+inactivos (preserva el `?tab=...` al cambiar la etiqueta y
+viceversa).
 
 El filtro es opcional. Sin él, las listas muestran todos los
 registros (etiquetados o no).
@@ -391,11 +398,19 @@ Devuelve `(first_day, last_day)` del mes correspondiente a un offset
 positivo (0 = actual, 1 = anterior, etc.). Maneja correctamente el
 cambio de año cuando el offset es grande.
 
+### `REPORT_PERIODS`
+
+Constante con los pares `(clave, etiqueta)` de los períodos de los
+reportes (`hoy`, `semana`, `mes`, `semestre`, `año`, `total`). La usan
+las tres vistas de reportes para alimentar al parcial `period_nav.html`.
+
 ---
 
 ## Convenciones de las vistas
 
 - Todas devuelven `render(request, "template.html", context)`.
+- Las listas serializan filas en Python (`headers_json` + `data_json`)
+  y delegan la tabla al parcial `grid_table.html`.
 - Tras POST exitoso, usan `redirect(name_url, ...)` y
   `messages.success(request, "Se ha guardado correctamente.")`.
 - Errores 404 explícitos con `raise Http404`.

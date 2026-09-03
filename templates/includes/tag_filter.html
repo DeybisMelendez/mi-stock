@@ -1,0 +1,22 @@
+{% comment %} Parcial reutilizable: barra de filtro por etiqueta para listas.
+Parámetros (usar con `only`):
+- available_tags: lista de {id, name}
+- selected_tag: Tag seleccionado o None
+- clear_url: URL del enlace "Limpiar filtro" (sin el parámetro tag)
+- preserve_tab: True solo en la lista de productos (preserva ?tab=)
+{% endcomment %}
+<div class="tag-filter-bar">
+  <form method="get" action="" class="tag-filter-form">
+    {% if preserve_tab %}<input type="hidden" name="tab" :value="tab">{% endif %}
+    <label for="tag-filter" class="muted">Filtrar por etiqueta:</label>
+    <select name="tag" id="tag-filter" @change="$event.target.form.submit()">
+      <option value="">— Todas —</option>
+      {% for t in available_tags %}
+      <option value="{{ t.id }}" {% if selected_tag and selected_tag.id == t.id %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
+    </select>
+    {% if selected_tag %}
+    <a href="{{ clear_url }}" class="text-small"><i class="material-icons">close</i> Limpiar filtro</a>
+    {% endif %}
+  </form>
+</div>
