@@ -106,6 +106,7 @@ cómo serializar las filas.
 | `/product/new/` | `product_new` | `product_form_view` | Crear producto con fotos |
 | `/product/<pk>/` | `product_detail` | `product_detail_view` | Detalle de producto |
 | `/product/<pk>/edit/` | `product_edit` | `product_form_view` | Editar producto con fotos |
+| `/product/<pk>/toggle-active/` | `product_toggle_active` | `product_toggle_active` | Activar/desactivar producto desde la lista (POST) |
 | `/compras/new/` | `purchase_invoice_new` | `purchase_invoice_form_view` | Crear factura de compra |
 | `/compras/<pk>/edit/` | `purchase_invoice_edit` | `purchase_invoice_form_view` | Editar factura de compra |
 | `/compras/<pk>/` | `purchase_invoice_detail` | `purchase_invoice_detail_view` | Ver factura de compra |
@@ -179,9 +180,15 @@ Ver sección "El truco del CRUD genérico" arriba. Particularidades:
 
 ### `generic_form_view(request, model_str, pk=None)`
 
-`pk=None` → crear; `pk=int` → editar. Tras un POST válido, hace
-`redirect("new", model_str=model_str)` (siempre redirige a "nuevo", no
-a "editar").
+`pk=None` → crear; `pk=int` → editar. Tras un POST válido:
+
+- Si venía de **editar** (`pk` presente): redirige a la lista
+  (`redirect("list", model_str=model_str)`). Los modelos del CRUD
+  genérico no tienen vista de detalle, así que la lista es la pantalla
+  natural para confirmar el cambio.
+- Si venía de **crear** (`pk` ausente): redirige al formulario vacío
+  (`redirect("new", model_str=model_str)`), igual que antes, para
+  permitir el flujo batch de "crear varios seguidos".
 
 ### `product_form_view(request, pk=None)`
 
@@ -191,7 +198,12 @@ Vista dedicada para `Product`. Combina `ProductForm` con
 1. Valida form y formset.
 2. `form.save()` (crea o edita el producto).
 3. `formset.instance = product` y `formset.save()` (gestiona fotos).
-4. Redirige a `product_new`.
+4. Redirige:
+   - Si **editaba** (`pk` presente): a `product_detail` del producto
+     recién guardado, para mostrar el resultado de los cambios (fotos,
+     stock, precio, margen...).
+   - Si **creaba** (`pk` ausente): a `product_new` (formulario vacío),
+     igual que antes.
 
 ### `product_detail_view(request, pk)`
 
@@ -203,6 +215,23 @@ Detalle de un producto. Calcula agregados de `Sale` y `Purchase`:
 - Valor en inventario (`stock * average_cost`)
 
 Pasa además `edit_url` y `list_url` para los botones del template.
+
+### `product_toggle_active(request, pk)`
+
+Activa o desactiva un producto desde la lista sin entrar al formulario
+de edición. Decorada con `@login_required` y `@require_POST` (cualquier
+GET → 405).
+
+- Invierte `Product.active`, persiste solo ese campo con
+  `save(update_fields=["active"])` (no toca stock ni costo).
+- Manda `messages.success` con "Producto activado/desactivado
+  correctamente.".
+- Redirige a `request.POST["next"]` si está presente (preserva tab y
+  filtros aplicados, p. ej. `?tab=inactive&tag=3`); si no, a
+  `/product/`.
+
+El botón en la lista es un mini-form POST con icono `toggle_on` /
+`toggle_off` (ver [`frontend.md`](frontend.md#rama-model--product)).
 
 ### `purchase_invoice_form_view` / `sale_invoice_form_view`
 
@@ -221,6 +250,14 @@ SaleItemFormSet = inlineformset_factory(
 ```
 
 > Estos formsets están definidos en `views.py`, **no** en `forms.py`.
+
+En POST, tras validar form y formset:
+
+- Si **editaba** (`pk` presente): redirige a
+  `purchase_invoice_detail` / `sale_invoice_detail` para mostrar la
+  factura ya actualizada.
+- Si **creaba** (`pk` ausente): redirige a `purchase_invoice_new` /
+  `sale_invoice_new` (formulario vacío, igual que antes).
 
 Además, pasan al template `invoice_form.html` los JSON con precios,
 costos y stocks de productos activos, que AlpineJS usa para

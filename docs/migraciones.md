@@ -23,6 +23,7 @@ gestiona Django.
 | 0012 | `0012_customer_saleinvoice_customer_obj.py` | Crea `Customer`; añade FK opcional `customer_obj` a `SaleInvoice`; backfill desde `SaleInvoice.customer` por nombre único |
 | 0013 | `0013_remove_saleinvoice_customer.py` | Reshape: crea `Cliente Genérico`, asigna `customer_obj` a todas las facturas (incluidas las que eran "Generic"), hace la FK obligatoria y elimina el campo de texto `customer` |
 | 0014 | `0014_tag_product_tags.py` | Crea el modelo `Tag` y añade el M2M `Product.tags`. No toca datos existentes (los productos quedan sin etiquetas por defecto) |
+| 0015 | `0015_remove_product_brand.py` | Elimina el campo `brand` de `Product`. Datos existentes (texto plano) se pierden; la clasificación transversal queda cubierta por las etiquetas (migración `0014`). |
 
 ## ⚠️ Bloque 0004–0006: NO son reversibles sobre datos reales
 

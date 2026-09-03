@@ -122,6 +122,15 @@ Sirve para casi todos los modelos. Tiene dos ramas:
 - La columna "Etiquetas" se renderiza con un caso especial en
   `_serialize`: se hace `p.tags.all()` y se concatenan los nombres con
   `, `. El resto de columnas mantiene el recorrido `__`.
+- La celda de **Acciones** se serializa como JSON con tres campos
+  (`detail`, `edit`, `toggle`) más `active` y `next` (URL actual con
+  sus query params). El JS hace `JSON.parse` y renderiza tres iconos:
+  `visibility` (ver), `edit` (editar) y un mini-form POST con icono
+  `toggle_on`/`toggle_off` (activar/desactivar). El token CSRF se
+  inyecta desde un `<input type="hidden" id="csrf-token">` que la
+  plantilla añade al inicio de la rama. El `next` se pasa como hidden
+  para que la vista `product_toggle_active` redirija de vuelta a la
+  lista preservando `?tab=` y `?tag=`.
 
 ### Barra de filtro por etiqueta
 
@@ -173,6 +182,12 @@ Las listas de productos y ventas muestran, justo después del botón
 
 `{{ form.as_div }}` renderiza cada campo en un `<div>`. No tiene JS.
 
+Tras guardar, la vista `generic_form_view` redirige a:
+
+- La **lista** del modelo si venía de una edición (`pk` presente).
+- Un **formulario vacío** si venía de una creación (`pk` ausente),
+  para permitir el flujo batch de "crear varios seguidos".
+
 ## `product_form.html` — Producto + fotos
 
 - Form principal `ProductForm` (campos del producto).
@@ -181,6 +196,12 @@ Las listas de productos y ventas muestran, justo después del botón
   clona una fila de la plantilla oculta `#empty-row-template` y
   incrementa `TOTAL_FORMS`.
 - Muestra thumbnails de fotos existentes en el formset de edición.
+
+Tras guardar, `product_form_view` redirige a:
+
+- `product_detail` del producto recién guardado si venía de una
+  edición (`pk` presente), para mostrar el resultado de los cambios.
+- `product_new` (formulario vacío) si venía de una creación.
 
 ## `invoice_form.html` — Factura + líneas (AlpineJS)
 

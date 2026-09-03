@@ -12,7 +12,7 @@ para las fotos de productos. **Los formsets de líneas de factura
 | `ExpenseCategoryForm` | `ExpenseCategory` | `name` |
 | `OtherIncomeCategoryForm` | `OtherIncomeCategory` | `name` |
 | `TagForm` | `Tag` | `name` |
-| `ProductForm` | `Product` | `name`, `category`, `brand`, `description`, `stock`, `price`, `average_cost`, `active`, `tags` |
+| `ProductForm` | `Product` | `name`, `category`, `description`, `stock`, `price`, `average_cost`, `active`, `tags` |
 | `ExpenseForm` | `Expense` | `date`, `category`, `amount`, `description` |
 | `OtherIncomeForm` | `OtherIncome` | `date`, `category`, `amount`, `description` |
 | `CustomerForm` | `Customer` | `name`, `whatsapp`, `address`, `department`, `notes`, `active` |

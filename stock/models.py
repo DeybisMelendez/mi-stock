@@ -32,7 +32,6 @@ class ExpenseCategory(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=200)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    brand = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True, null=True)
     stock = models.IntegerField(default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)

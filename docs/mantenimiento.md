@@ -122,6 +122,26 @@ Para añadir el filtro `?tag=<id>` en una lista gestionada por
 3. Si el formset cambia las líneas de factura, **también**
    [`docs/frontend.md`](frontend.md) sección `invoice_form.html`.
 
+### Cambio en la redirección tras POST exitoso
+
+El patrón actual en todas las vistas con form es:
+
+- `pk` ausente (creación) → redirige al formulario vacío (flujo batch).
+- `pk` presente (edición) → redirige a la vista de detalle si existe,
+  o a la lista del modelo en caso contrario.
+
+Si modificas este comportamiento en cualquier vista (`generic_form_view`,
+`product_form_view`, `purchase_invoice_form_view`,
+`sale_invoice_form_view`), actualiza:
+
+1. [`docs/vistas-y-urls.md`](vistas-y-urls.md) — sección de la vista
+   afectada, indicando el destino del redirect para cada caso.
+2. [`docs/frontend.md`](frontend.md) — bloque "Tras guardar" del
+   template correspondiente (`form.html`, `product_form.html`,
+   `invoice_form.html`).
+3. Mantén `messages.success(request, "Se ha guardado correctamente.")`
+   en la página de destino para confirmar al usuario.
+
 ### Nueva migración con reshape de datos
 
 1. [`docs/migraciones.md`](migraciones.md) — entrada en la tabla

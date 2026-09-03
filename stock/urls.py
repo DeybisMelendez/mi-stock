@@ -22,6 +22,7 @@ urlpatterns = [
     path("product/new/", views.product_form_view, name="product_new"),
     path("product/<int:pk>/", views.product_detail_view, name="product_detail"),
     path("product/<int:pk>/edit/", views.product_form_view, name="product_edit"),
+    path("product/<int:pk>/toggle-active/", views.product_toggle_active, name="product_toggle_active"),
     path("compras/new/", views.purchase_invoice_form_view, name="purchase_invoice_new"),
     path("compras/<int:pk>/edit/", views.purchase_invoice_form_view, name="purchase_invoice_edit"),
     path("compras/<int:pk>/", views.purchase_invoice_detail_view, name="purchase_invoice_detail"),

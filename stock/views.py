@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.forms import inlineformset_factory
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 from .models import (
     Category, ExpenseCategory, Product, ProductImage,
     Purchase, Sale, Expense,
@@ -137,9 +138,9 @@ def generic_list_view(request, model_str):
             if selected_tag:
                 active_qs = active_qs.filter(tags=selected_tag)
                 inactive_qs = inactive_qs.filter(tags=selected_tag)
-            fields = ["Nombre", "Categoría", "Marca",
+            fields = ["Nombre", "Categoría",
                       "Etiquetas", "Stock", "Precio", "Costo Promedio"]
-            columns = ["name", "category__name", "brand",
+            columns = ["name", "category__name",
                        "tags", "stock", "price", "average_cost"]
             title = "Productos"
 
@@ -163,7 +164,15 @@ def generic_list_view(request, model_str):
                         row.append("" if val is None else str(val))
                     edit_url   = reverse("product_edit",   args=[p.id])
                     detail_url = reverse("product_detail", args=[p.id])
-                    row.append(f"{detail_url}|{edit_url}")
+                    toggle_url = reverse("product_toggle_active", args=[p.id])
+                    actions = json.dumps({
+                        "detail": detail_url,
+                        "edit": edit_url,
+                        "toggle": toggle_url,
+                        "active": p.active,
+                        "next": request.get_full_path(),
+                    })
+                    row.append(actions)
                     rows.append(row)
                 return rows
 
@@ -182,6 +191,7 @@ def generic_list_view(request, model_str):
                 "available_tags": available_tags,
                 "selected_tag": selected_tag,
                 "tag_filter_url_key": "tag",
+                "current_full_path": request.get_full_path(),
             })
 
         case "expense":
@@ -266,7 +276,7 @@ def generic_form_view(request, model_str, pk=None):
         if form.is_valid():
             form.save()
             messages.success(request, f"Se ha guardado correctamente.")
-            return redirect("new", model_str=model_str)
+            return redirect("list", model_str=model_str) if pk else redirect("new", model_str=model_str)
     else:
         form = form_class(instance=obj)
 
@@ -292,7 +302,7 @@ def product_form_view(request, pk=None):
             formset.instance = product
             formset.save()
             messages.success(request, "Se ha guardado correctamente.")
-            return redirect("product_new")
+            return redirect("product_detail", pk=product.id) if pk else redirect("product_new")
     else:
         form = ProductForm(instance=product)
         formset = ProductImageFormSet(instance=product)
@@ -344,6 +354,20 @@ def product_detail_view(request, pk):
     return render(request, "product_detail.html", context)
 
 
+@login_required
+@require_POST
+def product_toggle_active(request, pk):
+    """Activa o desactiva un producto desde la lista, preservando el contexto."""
+    product = get_object_or_404(Product, pk=pk)
+    product.active = not product.active
+    product.save(update_fields=["active"])
+    verb = "activado" if product.active else "desactivado"
+    messages.success(request, f"Producto {verb} correctamente.")
+
+    next_url = request.POST.get("next") or reverse("list", args=["product"])
+    return redirect(next_url)
+
+
 # ===== Vistas de facturas (compra/venta con múltiples líneas) =====
 PurchaseItemFormSet = inlineformset_factory(
     PurchaseInvoice, Purchase, PurchaseItemForm,
@@ -368,7 +392,7 @@ def purchase_invoice_form_view(request, pk=None):
             formset.instance = invoice
             formset.save()
             messages.success(request, "Se ha guardado correctamente.")
-            return redirect("purchase_invoice_new")
+            return redirect("purchase_invoice_detail", pk=invoice.id) if pk else redirect("purchase_invoice_new")
     else:
         form = PurchaseInvoiceForm(instance=invoice)
         formset = PurchaseItemFormSet(instance=invoice)
@@ -404,7 +428,7 @@ def sale_invoice_form_view(request, pk=None):
             formset.instance = invoice
             formset.save()
             messages.success(request, "Se ha guardado correctamente.")
-            return redirect("sale_invoice_new")
+            return redirect("sale_invoice_detail", pk=invoice.id) if pk else redirect("sale_invoice_new")
     else:
         form = SaleInvoiceForm(instance=invoice)
         formset = SaleItemFormSet(instance=invoice)

@@ -28,14 +28,18 @@ las rutas están en `stock/urls.py`.
 
 ## Qué es un "producto disponible"
 
-`active=True` **y** `stock > 0`. Es decir:
+`active=True`. Esto incluye tanto productos con existencias como
+productos agotados (`stock=0`). Los productos inactivos
+(soft-delete) son los únicos excluidos.
 
-- Los productos inactivos (soft-delete) nunca aparecen.
-- Los productos agotados (stock 0) tampoco.
+Para distinguir disponibilidad de stock sin exponer la cantidad, el
+payload incluye el campo booleano `in_stock` (`true` si hay
+existencias, `false` si está agotado). Ver "Campos excluidos a
+propósito" más abajo.
 
-El detalle de un producto no disponible devuelve **404** con body JSON
-(`{"error": "Producto no encontrado."}`), sin distinguir entre "no
-existe" e "inactivo" (para no filtrar información por ID).
+El detalle de un producto inactivo o inexistente devuelve **404** con
+body JSON (`{"error": "Producto no encontrado."}`), sin distinguir
+entre "no existe" e "inactivo" (para no filtrar información por ID).
 
 ## Formato de respuesta
 
@@ -48,19 +52,19 @@ Lista (`GET /api/products/`):
     {
       "id": 1,
       "name": "Coca-Cola 600ml",
-      "brand": "Coca-Cola",
       "description": "Bebida gaseosa",
       "price": "25.00",
+      "in_stock": true,
       "category": {"id": 2, "name": "Bebidas"},
       "tags": ["oferta", "nuevo"],
-      "images": ["http://localhost:8000/media/product_images/foto1.jpg"]
+      "images": ["https://mi-stock-alphatechni.pythonanywhere.com/media/product_images/foto1.jpg"]
     },
     {
       "id": 5,
       "name": "Mouse inalámbrico",
-      "brand": "Logitech",
       "description": "",
       "price": "350.00",
+      "in_stock": false,
       "category": {"id": 3, "name": "Accesorios"},
       "tags": [],
       "images": []
@@ -76,6 +80,10 @@ Notas del formato:
 - **`price` es string** (p. ej. `"25.00"`). Es la serialización directa
   del `DecimalField`; evita problemas de precisión flotante en el
   consumidor.
+- **`in_stock` es boolean** derivado de `Product.stock > 0` al momento
+  de la consulta. Permite al consumidor distinguir productos con
+  existencias de los agotados **sin** revelar la cantidad exacta en
+  inventario.
 - **`description`** se envía como **markdown plano** (string sin
   procesar). El consumidor es responsable de renderizarlo si lo desea.
   La UI interna de Mi Stock lo renderiza con el filtro `markdown_safe`
@@ -122,13 +130,13 @@ CORS_URLS_REGEX = r"^/api/.*$"
 
 ```bash
 # Lista
-curl http://localhost:8000/api/products/
+curl https://mi-stock-alphatechni.pythonanywhere.com/api/products/
 
 # Detalle
-curl http://localhost:8000/api/products/1/
+curl https://mi-stock-alphatechni.pythonanywhere.com/api/products/1/
 
 # Método no permitido (405)
-curl -X POST http://localhost:8000/api/products/
+curl -X POST https://mi-stock-alphatechni.pythonanywhere.com/api/products/
 ```
 
 ## Advertencia sobre producción

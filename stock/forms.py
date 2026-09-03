@@ -30,7 +30,7 @@ class ExpenseCategoryForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ["name", "category", "brand", "description",
+        fields = ["name", "category", "description",
                   "stock", "price", "average_cost", "active", "tags"]
 
 

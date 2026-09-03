@@ -84,7 +84,6 @@ los mantienen `Purchase` y `Sale`.
 |---|---|---|
 | `name` | `CharField(max_length=200)` | |
 | `category` | `ForeignKey(Category, on_delete=CASCADE)` | Borrar categoría borra productos |
-| `brand` | `CharField(max_length=100, blank=True)` | Opcional |
 | `description` | `TextField(blank=True, null=True)` | Opcional. Acepta markdown; se renderiza con el filtro `markdown_safe` en `product_detail.html` y se sanitiza con `bleach` antes de mostrarse. |
 | `stock` | `IntegerField(default=0)` | **Mantenido por `Purchase`/`Sale`** |
 | `price` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | Precio de venta |

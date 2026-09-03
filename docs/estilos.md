@@ -116,6 +116,20 @@ Grid.js), no se necesita una clase extra: el contenedor de Grid.js ya aporta
 los estilos. Si añades un enlace directo con icono+etiqueta, considera
 `.icon-link` para quitar el subrayado bajo el icono.
 
+Cuando el icono va dentro de un `<button>` (p. ej. el botón toggle de
+activar/desactivar producto en la lista), usa `.icon-btn` para evitar
+que Pico le dé aspecto de botón grande:
+
+```html
+<button type="submit" class="icon-btn" title="Activar">
+    <i class="material-icons">toggle_off</i>
+</button>
+```
+
+`.icon-btn` resetea `background`, `border`, `padding`, `margin`,
+`line-height`, `height` y `width`, dejando el botón con el tamaño justo
+del icono y hereda `color` de Pico.
+
 ### 5.3 Layouts
 
 | Clase | Uso |

@@ -44,6 +44,8 @@
   <hr>
 
   {% if model == 'product' %}
+  <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+
   <nav class="tabs-bar tabs-bar--buttons" role="tablist">
     <button type="button" role="tab"
             :class="{ 'tab-active': tab === 'active' }"
@@ -82,22 +84,66 @@
         }
         const data = rawData.map(row => row.map((cell, idx) => {
           if (idx === row.length - 1) {
-            const parts = cell.split('|');
+            let actions;
+            try { actions = JSON.parse(cell); }
+            catch (e) { actions = null; }
+
             const span = document.createElement('span');
             span.style.display = 'inline-flex';
             span.style.gap = '0.5rem';
-            if (parts.length === 2) {
+            span.style.alignItems = 'center';
+
+            if (actions && actions.detail && actions.edit && actions.toggle) {
               const detail = document.createElement('a');
-              detail.href = parts[0];
+              detail.href = actions.detail;
               detail.innerHTML = '<i class="material-icons">visibility</i>';
               detail.title = 'Ver';
               span.appendChild(detail);
+
+              const edit = document.createElement('a');
+              edit.href = actions.edit;
+              edit.innerHTML = '<i class="material-icons">edit</i>';
+              edit.title = 'Editar';
+              span.appendChild(edit);
+
+              const toggleForm = document.createElement('form');
+              toggleForm.method = 'post';
+              toggleForm.action = actions.toggle;
+              toggleForm.style.display = 'inline';
+              toggleForm.style.margin = '0';
+
+              const csrfInput = document.createElement('input');
+              csrfInput.type = 'hidden';
+              csrfInput.name = 'csrfmiddlewaretoken';
+              csrfInput.value = document.getElementById('csrf-token').value;
+              toggleForm.appendChild(csrfInput);
+
+              const nextInput = document.createElement('input');
+              nextInput.type = 'hidden';
+              nextInput.name = 'next';
+              nextInput.value = actions.next || window.location.pathname;
+              toggleForm.appendChild(nextInput);
+
+              const toggleBtn = document.createElement('button');
+              toggleBtn.type = 'submit';
+              toggleBtn.className = 'icon-btn';
+              toggleBtn.title = actions.active ? 'Desactivar' : 'Activar';
+              toggleBtn.setAttribute('aria-label', toggleBtn.title);
+              const icon = document.createElement('i');
+              icon.className = 'material-icons';
+              icon.textContent = actions.active ? 'toggle_on' : 'toggle_off';
+              toggleBtn.appendChild(icon);
+              toggleForm.appendChild(toggleBtn);
+
+              span.appendChild(toggleForm);
+              return span;
             }
-            const edit = document.createElement('a');
-            edit.href = parts.length === 2 ? parts[1] : parts[0];
-            edit.innerHTML = '<i class="material-icons">edit</i>';
-            edit.title = 'Editar';
-            span.appendChild(edit);
+
+            const fallbackEdit = document.createElement('a');
+            fallbackEdit.href = cell;
+            fallbackEdit.innerHTML = '<i class="material-icons">edit</i>';
+            fallbackEdit.title = 'Editar';
+            span.appendChild(fallbackEdit);
             return span;
           }
           return cell;
