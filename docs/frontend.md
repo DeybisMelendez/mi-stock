@@ -428,11 +428,15 @@ Carga Chart.js (solo esta página). Calcula y muestra:
 Las etiquetas de los gráficos se inyectan como JSON seguro
 (`{{ monthly_labels_json|safe }}`).
 
-> **Productos inactivos excluidos**: el valor de inventario y las
-> alertas de stock solo consideran productos activos. Los ingresos,
-> costos, top productos, top categorías y la tendencia mensual
-> también excluyen ventas de productos inactivos (coherente con
-> los formularios de facturas y la API pública). Ver
+> **Productos inactivos: valor de inventario excluye, ventas no**.
+> El valor de inventario y las alertas de stock solo consideran
+> productos activos (los inactivos ya no son parte del catálogo).
+> En cambio, los ingresos, costos, top productos, top categorías y
+> la tendencia mensual **sí** cuentan las ventas de productos
+> inactivos: una venta histórica es un hecho económico y no
+> depende del estado actual del producto. Esto es coherente con
+> los formularios de facturas (que filtran por `active=True` solo
+> al sugerir productos) y la API pública. Ver
 > [`docs/logica-stock-costo.md`](logica-stock-costo.md#soft-delete-productactive).
 
 ## `month_result.html` — Estado de resultados mensual

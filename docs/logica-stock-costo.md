@@ -208,25 +208,29 @@ Introducido por la migración `0010`. Los productos inactivos:
   (`PurchaseItemForm` y `SaleItemForm` filtran por `active=True`).
 - **No aparecen** en la API pública de productos
   (`stock/api.py` filtra por `active=True`).
-- **Se excluyen** de las estadísticas y reportes del dashboard y
-  vistas de reportes. Concretamente, las queries de `Sale` sobre
-  ingresos, costos, top productos, top categorías, ventas por
-  departamento y ventas por etiqueta añaden
-  `product__active=True`. Las queries de `Product` sobre valor de
-  inventario y alertas de stock (bajo / agotado) añaden
+- **No aportan al valor de inventario** ni a las alertas de stock
+  (bajo / agotado): las queries de `Product` añaden
   `Product.active=True`.
+- **Sí siguen contando sus ventas históricas** en estadísticas y
+  reportes. Concretamente, las queries de `Sale` sobre ingresos,
+  costos, top productos, top categorías, ventas por departamento,
+  ventas por etiqueta, estado de resultados y tendencia mensual **no**
+  filtran por `product__active`. Una venta es un hecho económico y
+  debe contar aunque el producto se haya desactivado después.
 
   Esto significa que un producto inactivo:
 
   - No aporta al **valor de inventario** aunque conserve stock
-    físico.
-  - Sus ventas pasadas **dejan de contar** en estadísticas y
-    reportes mientras esté inactivo. Si lo reactivas, vuelven a
-    contar.
+    físico (no es parte del catálogo actual).
+  - Sus ventas pasadas **siguen contando** en estadísticas y
+    reportes exactamente igual que cuando estaba activo.
 
-  Esta es la dirección natural del soft-delete: un producto
-  descontinuado no es parte del catálogo actual. Si necesitas
-  liquidar el stock restante, reactívalo temporalmente.
+  La dirección del soft-delete es: el campo `active` solo afecta al
+  **catálogo actual** (qué productos se pueden vender y qué stock
+  está disponible), no a la **historia económica** (qué se vendió).
+  Si necesitas liquidar el stock restante de un producto inactivo,
+  reactívalo temporalmente; cuando lo vuelvas a desactivar, sus
+  ventas históricas ya contadas siguen contando.
 
 ---
 

@@ -737,9 +737,15 @@ def sale_invoice_detail_view(request, pk):
 
 
 def _top_products(since):
-    """Top productos por ingresos desde la fecha dada. Excluye productos inactivos."""
+    """Top productos por ingresos desde la fecha dada.
+
+    Las ventas históricas cuentan aunque el producto esté inactivo hoy:
+    una venta es un hecho económico y no depende del estado actual del
+    catálogo. El soft-delete solo afecta al catálogo actual
+    (formularios de facturas nuevas, API pública, valor de inventario).
+    """
     rows = (
-        Sale.objects.filter(invoice__date__gte=since, product__active=True)
+        Sale.objects.filter(invoice__date__gte=since)
         .values("product__name", "product__category__name")
         .annotate(
             total_sold=Sum("quantity"),
@@ -780,14 +786,14 @@ def home(request):
         return ((current - previous) / previous) * 100
 
     def sale_sum(start, end=None):
-        qs = Sale.objects.filter(invoice__date__gte=start, product__active=True)
+        qs = Sale.objects.filter(invoice__date__gte=start)
         if end:
             qs = qs.filter(invoice__date__lte=end)
         return qs.aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
 
     def cost_sum(start, end):
         return (
-            Sale.objects.filter(invoice__date__range=[start, end], product__active=True)
+            Sale.objects.filter(invoice__date__range=[start, end])
             .aggregate(total=Sum(F("quantity") * F("cost")))["total"]
             or 0
         )
@@ -843,7 +849,7 @@ def home(request):
 
     # ===== TOP CATEGORÍAS (30 días) =====
     top_categories = (
-        Sale.objects.filter(invoice__date__gte=last30_date, product__active=True)
+        Sale.objects.filter(invoice__date__gte=last30_date)
         .values("product__category__name")
         .annotate(total_revenue=Sum(F("quantity") * F("price")))
         .order_by("-total_revenue")[:5]
@@ -854,7 +860,7 @@ def home(request):
     month_map = {
         m["month"]: float(m["total"])
         for m in (
-            Sale.objects.filter(invoice__date__gte=twelve_months_ago, product__active=True)
+            Sale.objects.filter(invoice__date__gte=twelve_months_ago)
             .annotate(month=TruncMonth("invoice__date"))
             .values("month")
             .annotate(total=Sum(F("quantity") * F("price")))
@@ -948,14 +954,14 @@ def month_result(request, month_offset=0):
     sale_filter = {"invoice__date__range": [start, end]}
     date_filter = {"date__range": [start, end]}
 
-    # Ingresos y costos del mes (excluye productos inactivos)
+    # Ingresos y costos del mes
     income = (
-        Sale.objects.filter(**sale_filter, product__active=True)
+        Sale.objects.filter(**sale_filter)
         .aggregate(total=Sum(F("quantity") * F("price")))
     )["total"] or 0
 
     costs = (
-        Sale.objects.filter(**sale_filter, product__active=True)
+        Sale.objects.filter(**sale_filter)
         .aggregate(total=Sum(F("quantity") * F("cost")))
     )["total"] or 0
 
@@ -972,9 +978,9 @@ def month_result(request, month_offset=0):
     gross_profit = income - costs
     net_profit = income + other_income - costs - expenses
 
-    # Desglose por categoría de producto (excluye productos inactivos)
+    # Desglose por categoría de producto
     income_by_category = list(
-        Sale.objects.filter(**sale_filter, product__active=True)
+        Sale.objects.filter(**sale_filter)
         .values("product__category__name")
         .annotate(
             income=Sum(F("quantity") * F("price")),
@@ -1169,7 +1175,7 @@ def top_products_view(request, period='mes'):
         raise Http404("Período no válido")
 
     top_products = (
-        Sale.objects.filter(**date_filter, product__active=True)
+        Sale.objects.filter(**date_filter)
         .values('product__name', 'product__category__name')
         .annotate(
             total_sold=Sum('quantity'),
@@ -1242,7 +1248,6 @@ def sales_by_department(request, period='mes'):
     rows = (
         Sale.objects.filter(
             **date_filter,
-            product__active=True,
             invoice__customer_obj__isnull=False,
         )
         .values("invoice__customer_obj__department__name")
@@ -1315,7 +1320,7 @@ def sales_by_tag(request, period='mes'):
 
     rows = (
         Sale.objects.filter(
-            **date_filter, product__active=True, product__tags__isnull=False
+            **date_filter, product__tags__isnull=False
         )
         .values("product__tags__id", "product__tags__name")
         .annotate(

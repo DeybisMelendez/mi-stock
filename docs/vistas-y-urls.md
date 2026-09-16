@@ -180,13 +180,15 @@ Calcula y devuelve al template `home.html`:
 - **Tendencia mensual** (12 meses hacia atrás): ingresos por mes con
   `TruncMonth`.
 
-> **Productos inactivos excluidos**: todas las queries sobre `Sale`
+> **Ventas históricas siempre cuentan**: las queries sobre `Sale`
 > (ingresos, costos, top productos, top categorías, tendencia mensual)
-> añaden `product__active=True`. Las queries sobre `Product` (valor de
-> inventario, alertas) añaden `active=True`. Esto es coherente con el
-> comportamiento de los formularios de facturas y la API pública, que
-> también filtran por `active=True`. Si luego reactivas un producto,
-> sus ventas pasadas vuelven a contar en los reportes históricos.
+> **no** filtran por `product__active`. Una venta histórica es un hecho
+> económico y cuenta aunque el producto se haya desactivado después.
+> Las queries sobre `Product` (valor de inventario, alertas) sí añaden
+> `active=True`: un producto inactivo no aporta al catálogo actual ni a
+> su inventario. Esto es coherente con los formularios de facturas y la
+> API pública, que también filtran por `active=True`. Ver
+> [`logica-stock-costo.md`](logica-stock-costo.md#soft-delete-productactive).
 
 ### `product_list_view(request)`
 
@@ -349,11 +351,11 @@ para calcular el rango. Calcula:
 - Ingresos y costos **por categoría de producto** (`income_by_category`).
 - Gastos y otros ingresos: lista detallada y agrupación por categoría.
 
-> **Productos inactivos excluidos**: las queries sobre `Sale` (ingresos,
-> costos, `income_by_category`) añaden `product__active=True`. Los
-> gastos y otros ingresos no se ven afectados (no están ligados a
-> productos). Si reactivas un producto, sus ventas vuelven a contar
-> en el mes correspondiente.
+> **Ventas históricas siempre cuentan**: las queries sobre `Sale`
+> (ingresos, costos, `income_by_category`) **no** filtran por
+> `product__active`. Una venta de un producto que luego se desactivó
+> sigue contando en el mes en que se vendió. Los gastos y otros
+> ingresos no se ven afectados (no están ligados a productos).
 
 El template `month_result.html` muestra navegación entre meses
 anteriores (no permite ir a futuro).
@@ -371,7 +373,8 @@ Top productos vendidos en un período. `period` puede ser:
 
 Agrupa por producto, suma cantidad e ingresos (`quantity * price`),
 calcula el porcentaje sobre el total y serializa las filas a
-`data_json`. **Excluye productos inactivos** (`product__active=True`).
+`data_json`. **No filtra por `product__active`**: las ventas
+históricas de productos hoy inactivos siguen contando en el top.
 Renderiza `top_products.html` con el parcial `grid_table.html`
 (`no_actions=True`, sin columna de acciones) y el parcial
 `period_nav.html` para saltar entre períodos.
@@ -388,8 +391,10 @@ geográfica de los ingresos entre los departamentos de Nicaragua.
 facturas; las que tienen como cliente el "Cliente Genérico" sin
 departamento quedan agrupadas bajo "Sin departamento".
 
-**Excluye productos inactivos** (`product__active=True`): solo se
-contabilizan ventas de productos activos.
+**No excluye productos inactivos**: una venta histórica de un
+producto que luego se desactivó sigue contando en este reporte.
+Solo se filtran las ventas sin `customer_obj` (que tras la migración
+`0013` no deberían existir en la práctica).
 
 Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
 `sales_by_department.html` con `grid_table.html` (`no_actions=True`,
@@ -408,9 +413,10 @@ asignada (`product__tags__isnull=False`).
 > (no aparecen bajo "Sin etiqueta"). Esto es intencional: sin
 > etiqueta no hay forma útil de agruparlas.
 
-**Excluye productos inactivos** (`product__active=True`): si un
-producto está inactivo, sus ventas (con o sin etiqueta) quedan fuera
-del agrupamiento.
+**No excluye productos inactivos**: una venta histórica de un
+producto que luego se desactivó sigue contando en este reporte.
+Las ventas de productos sin etiqueta siguen quedando fuera del
+agrupamiento (ver el bloque inmediatamente arriba).
 
 Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
 `sales_by_tag.html` con `grid_table.html` (`no_actions=True`) y
@@ -464,10 +470,11 @@ modelo por modelo con `serializers.deserialize`. Ver
 
 ### `_top_products(since)`
 
-Top 10 productos por ingresos desde `since`. **Excluye productos
-inactivos** (`product__active=True`). Devuelve lista de dicts con
-`product__name`, `product__category__name`, `total_sold`,
-`total_revenue` y `percentage` calculado.
+Top 10 productos por ingresos desde `since`. **No filtra por
+`product__active`**: las ventas históricas de productos hoy inactivos
+siguen contando. Devuelve lista de dicts con `product__name`,
+`product__category__name`, `total_sold`, `total_revenue` y
+`percentage` calculado.
 
 ### `_period_label(start, end)`
 

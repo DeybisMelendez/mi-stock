@@ -88,7 +88,7 @@ los mantienen `Purchase` y `Sale`.
 | `stock` | `IntegerField(default=0)` | **Mantenido por `Purchase`/`Sale`** |
 | `price` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | Precio de venta |
 | `average_cost` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | **Mantenido por `Purchase`** (costo promedio ponderado) |
-| `active` | `BooleanField(default=True)` | Soft-delete. Productos inactivos no aparecen en facturas nuevas, no aportan al valor de inventario, no generan alertas de stock y sus ventas pasadas no cuentan en estadísticas ni reportes. Ver migración `0010_product_active` y [`docs/logica-stock-costo.md`](logica-stock-costo.md#soft-delete-productactive). |
+| `active` | `BooleanField(default=True)` | Soft-delete. Productos inactivos no aparecen en facturas nuevas, no aportan al valor de inventario, no generan alertas de stock y no aparecen en la API pública; **pero sus ventas históricas sí cuentan** en estadísticas y reportes (ingresos, costos, top productos, top categorías, ventas por departamento/etiqueta, estado de resultados, tendencia mensual). Ver migración `0010_product_active` y [`docs/logica-stock-costo.md`](logica-stock-costo.md#soft-delete-productactive). |
 | `tags` | `ManyToManyField(Tag, blank=True, related_name="products")` | Etiquetas libres. Un producto puede tener varias (o ninguna). Ver migración `0014`. |
 
 ### Métodos
