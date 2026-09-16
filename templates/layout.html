@@ -33,6 +33,7 @@
     </nav>
 
     {% if user.is_authenticated %}
+    <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
     <div class="nav-backdrop" aria-hidden="true" hidden></div>
     <aside id="nav-panel" class="nav-panel" aria-label="Menú principal" hidden>
         <div class="nav-panel__head">

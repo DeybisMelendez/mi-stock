@@ -201,9 +201,18 @@ mini-form POST de activar/desactivar). Renderiza `product_list.html`.
 
 Listas de facturas. Cada fila serializa `Fecha` (`dd/mm/YYYY`), parte
 (`supplier` o `customer_obj.name`), resumen de líneas
-(`cantidad × producto`) y total. Aceptan filtro opcional `?tag=<id>`
-(facturas con al menos una línea cuyo producto tenga la etiqueta).
-Renderizan `purchase_list.html` / `sale_list.html`.
+(`cantidad × producto`), total y estado (`Activa` / `Anulada`).
+Aceptan filtro opcional `?tag=<id>` (facturas con al menos una
+línea cuyo producto tenga la etiqueta). Renderizan
+`purchase_list.html` / `sale_list.html`.
+
+> **Anular/Reactivar no se exponen en los listados**: las listas solo
+> muestran el botón "Ver" para cada fila. Para anular o reactivar
+> una factura hay que entrar a su detalle
+> (`/compras/<pk>/`, `/ventas/<pk>/`). Ver
+> [`invoice_detail.html`](../templates/invoice_detail.html) y la
+> nota de "Anular/Reactivar solo desde el detalle" bajo
+> `void_purchase_invoice`.
 
 ### `product_form_view(request, pk=None)`
 
@@ -298,6 +307,16 @@ Anulan una factura. Vistas con `@login_required` y `@require_POST`.
   `delete()` revierte stock/costo) y marca la factura como
   anulada.
 - Redirigen a la lista del modelo con `messages.success`.
+
+> **Anular/Reactivar solo desde el detalle.** Las vistas
+> `void_*_invoice` y `reactivate_*_invoice` **no** se enlazan desde
+> los listados (`/compras/`, `/ventas/`): las listas solo exponen
+> el botón "Ver" para cada fila. Para anular o reactivar hay que
+> entrar al detalle de la factura. Esto simplifica la UX (la razón
+> obligatoria se pide una vez que el usuario ya está mirando la
+> factura) y elimina la posibilidad de enviar formularios vacíos
+> desde la lista por error. Ver
+> [`invoice_detail.html`](../templates/invoice_detail.html).
 
 ### `reactivate_purchase_invoice` / `reactivate_sale_invoice`
 
@@ -473,7 +492,12 @@ las tres vistas de reportes para alimentar al parcial `period_nav.html`.
 
 - Todas devuelven `render(request, "template.html", context)`.
 - Las listas serializan filas en Python (`headers_json` + `data_json`)
-  y delegan la tabla al parcial `grid_table.html`.
+  y delegan la tabla al parcial `grid_table.html`. Si la lista tiene
+  columnas numéricas, además pasan `sort_values_json` (lista paralela
+  con floats en columnas numéricas y `""` en el resto) y envuelven
+  las celdas numéricas con `_sortable_cell(value)` para que Grid.js
+  ordene numéricamente. Ver
+  [`frontend.md`](frontend.md#celdas-ordenables-columnas-numéricas).
 - Tras POST exitoso, usan `redirect(name_url, ...)` y
   `messages.success(request, "Se ha guardado correctamente.")`.
 - Errores 404 explícitos con `raise Http404`.

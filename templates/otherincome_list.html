@@ -4,6 +4,6 @@
   <h1>{{ title }}</h1>
   <a href="{% url 'otherincome_new' %}" role="button"><i class="material-icons">add</i> Nuevo</a>
   <hr>
-  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json only %}
+  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json sort_values_json=sort_values_json|default_if_none:"[]" only %}
 </main>
 {% endblock %}

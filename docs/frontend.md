@@ -82,7 +82,8 @@ Material, idioma español). Se incluye con `{% include ... with ... only %}`:
 |---|---|
 | `container_id` | id único del `<div>` contenedor (una página puede tener varias tablas) |
 | `headers_json` | JSON array con los encabezados |
-| `data_json` | JSON array de filas (arrays de strings) |
+| `data_json` | JSON array de filas (arrays de strings; ver "Celdas ordenables" para celdas numéricas) |
+| `sort_values_json` | (opcional) JSON array paralelo a `data_json` con valores numéricos de ordenamiento. Si se omite o queda `[]`, todas las columnas se ordenan lexicográficamente. Ver "Celdas ordenables". |
 | `no_actions` | pasar `True` para tablas de solo lectura (reportes) |
 | `empty_message` | mensaje cuando no hay registros |
 
@@ -91,7 +92,7 @@ celda de cada fila es un objeto (o string JSON) con las URLs a
 renderizar como iconos:
 
 ```json
-{"detail": "...", "edit": "...", "toggle": "...", "void": "...", "reactivate": "..."}
+{"detail": "...", "edit": "...", "toggle": "..."}
 ```
 
 El parcial soporta los siguientes tipos de acción:
@@ -99,19 +100,81 @@ El parcial soporta los siguientes tipos de acción:
 - `detail` → `<a>` con icono `visibility` (Ver).
 - `edit` → `<a>` con icono `edit` (Editar).
 - `toggle` → mini-form POST con icono `toggle_on`/`toggle_off`
-  (Activar/Desactivar), leyendo el token CSRF de
-  `<input id="csrf-token">` (que `product_list.html` añade) y
-  preservando `next`.
-- `void` → mini-form POST con icono `block` (Anular). Antes de
-  enviar, abre un `window.prompt()` pidiendo la razón. Si está
-  vacía o se cancela, no se envía.
-- `reactivate` → mini-form POST con icono `restore` (Reactivar).
-  Antes de enviar, abre un `window.confirm()` pidiendo
-  confirmación. Si se cancela, no se envía.
+  (Activar/Desactivar), leyendo el token CSRF del input
+  `<input id="csrf-token">` que el layout base `layout.html` añade
+  (dentro del bloque `{% if user.is_authenticated %}`, por lo que
+  solo aparece para sesiones autenticadas) y preservando `next`.
 
-Las acciones `void` y `reactivate` se usan en las listas de
-facturas (`/compras/`, `/ventas/`). La vista serializa estos
-objetos en Python; el parcial solo los convierte en iconos + JS.
+> **Anular/Reactivar facturas no se exponen en los listados**. Las
+> acciones `void` y `reactivate` ya no se serializan en las vistas
+> `purchase_list_view` y `sale_list_view`. Esas operaciones se hacen
+> exclusivamente desde el detalle
+> ([`invoice_detail.html`](invoice_detail.html)),
+> donde `prompt()`/`confirm()` y la razón obligatoria se piden en
+> contexto. Ver [`vistas-y-urls.md`](vistas-y-urls.md) §
+> "`void_purchase_invoice` / `void_sale_invoice`" y §
+> "`purchase_list_view` / `sale_list_view`".
+
+#### Celdas ordenables (columnas numéricas)
+
+Grid.js ordena por defecto **lexicográficamente** sobre la celda
+visible. Eso rompe las columnas numéricas (`Stock`, `Precio`, `Total`,
+`Monto`, `Cantidad Vendida`, `Ingresos Totales`, etc.) donde
+`"10"` < `"2"` y `"100.00"` < `"25.00"`.
+
+Para que el orden sea numérico, la vista serializa las celdas
+numéricas con un objeto `{display, sort}`:
+
+```json
+{"display": "10", "sort": 10.0}
+```
+
+`display` es lo que ve el usuario; `sort` es el float que Grid.js
+usa internamente para comparar (configurado con `sort.compare` en
+el parcial). El objeto se inyecta en `data_json` (no hace falta un
+segundo parámetro por celda) y un `sort_values_json` paralelo
+declara qué columnas son numéricas: si la primera fila tiene un
+número en la posición N, esa columna se ordena numéricamente; si
+es string vacío o `null`, se ordena por la celda visible.
+
+Para añadir columnas numéricas a una vista nueva, el helper en
+`stock/views.py` es:
+
+```python
+def _sortable_cell(value):
+    if value is None:
+        return ""
+    return {"display": str(value), "sort": float(value)}
+```
+
+Y se usa así:
+
+```python
+rows.append([
+    "Coca-Cola",
+    _sortable_cell(p.stock),     # celda ordenable numérica
+    _sortable_cell(p.price),     # celda ordenable numérica
+    p.category.name,             # celda de texto (lexicográfica)
+    actions,
+])
+sort_values.append([
+    "",                          # texto: vacío
+    float(p.stock),              # numérico: el float
+    float(p.price),
+    "",                          # texto: vacío
+    "",                          # acciones: nunca se ordena
+])
+context["data_json"] = json.dumps(rows)
+context["sort_values_json"] = json.dumps(sort_values)
+```
+
+Las vistas que actualmente usan `sort_values_json`:
+`product_list_view`, `purchase_list_view`, `sale_list_view`,
+`expense_list_view`, `otherincome_list_view`,
+`top_products_view`, `sales_by_department`, `sales_by_tag`. Las
+vistas puramente textuales (categorías, tags, categorías de gastos,
+categorías de otros ingresos, clientes) pasan `sort_values_json = []`
+y conservan el orden lexicográfico.
 
 ### `tag_filter.html` — Barra de filtro por etiqueta
 
@@ -143,6 +206,10 @@ la barra de navegación única (misma en todas las pantallas):
     (`<aside id="nav-panel">`) con backdrop, que contiene el menú
     completo agrupado en 5 secciones (Catálogo / Operaciones /
     Reportes / Cuenta / Datos).
+  - Hidden `<input id="csrf-token">` con el token CSRF, para que
+    el parcial `includes/grid_table.html` pueda construir sus
+    mini-forms POST de acciones (activar/desactivar). Solo se
+    renderiza para sesiones autenticadas.
 - Si no: enlace "Iniciar sesión" a la derecha.
 
 Debajo del `<nav>`:
@@ -222,8 +289,6 @@ La más interactiva de las listas:
 - Incluye `grid_table.html` **dos veces** (`container_id` distintos:
   `gridjs-active` / `gridjs-inactive`), una por tab.
 - Incluye `tag_filter.html` con `preserve_tab=True`.
-- Añade `<input type="hidden" id="csrf-token">` para el mini-form
-  POST de activar/desactivar del parcial.
 
 ### `purchase_list.html` / `sale_list.html` — Listas de facturas
 
@@ -231,9 +296,10 @@ Botón "Nueva" hacia `purchase_invoice_new` / `sale_invoice_new` +
 `tag_filter.html` + `grid_table.html`. Main lleva `x-data="{}"` para
 que AlpineJS procese el `@change` del filtro.
 
-La tabla incluye una columna **Estado** ("Activa" o "Anulada") y
-las acciones de la última celda son `void` o `reactivate` según
-el estado de cada factura (ver parcial `grid_table.html` arriba).
+La tabla incluye una columna **Estado** ("Activa" o "Anulada"). La
+última celda solo expone el botón "Ver" — Anular y Reactivar se hacen
+desde el detalle (ver [`invoice_detail.html`](invoice_detail.html)
+arriba).
 
 ### Reportes (`top_products.html`, `sales_by_department.html`, `sales_by_tag.html`)
 

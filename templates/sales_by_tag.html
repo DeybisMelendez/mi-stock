@@ -7,6 +7,6 @@
 
   <hr>
 
-  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json no_actions=True only %}
+  {% include "includes/grid_table.html" with container_id="gridjs-table" headers_json=headers_json data_json=data_json sort_values_json=sort_values_json|default:"[]" no_actions=True only %}
 </main>
 {% endblock %}

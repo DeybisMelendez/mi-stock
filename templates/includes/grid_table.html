@@ -4,6 +4,11 @@ Parámetros (usar con `only`):
 - headers_json: JSON array con los encabezados (la última celda puede ser "Acciones")
 - data_json: JSON array de filas (cada fila es un array de strings;
   si hay acciones, la última celda es un objeto/JSON con detail/edit/toggle/void/reactivate)
+- sort_values_json: (opcional) JSON array de filas paralelo a data_json con
+  los valores numéricos de ordenamiento. Cada celda es un número (float) si
+  la columna correspondiente es numérica (Stock, Precio, Total, Monto...),
+  o string vacío si se ordena por el texto visible. Si se omite, todas las
+  columnas se ordenan lexicográficamente por la celda visible.
 - no_actions: pasar True (o cualquier valor verdadero) para tablas
   de solo lectura, sin columna de acciones
 - empty_message: mensaje cuando no hay registros
@@ -12,10 +17,10 @@ Acciones soportadas en la última celda de cada fila (objeto JSON):
 - detail: URL -> icono "visibility" (Ver)
 - edit: URL -> icono "edit" (Editar)
 - toggle: URL -> mini-form POST con icono toggle_on/off (Activar/Desactivar)
-- void: URL -> mini-form POST con icono "block" (Anular). Pide razón
-  vía window.prompt() antes de enviar.
-- reactivate: URL -> mini-form POST con icono "restore" (Reactivar).
-  Pide confirmación vía window.confirm() antes de enviar.
+
+Anular/Reactivar facturas se hace exclusivamente desde el detalle
+(`/compras/<pk>/`, `/ventas/<pk>/`), no desde los listados. Por eso
+estas acciones no se serializan en las listas.
 {% endcomment %}
 <div id="{{ container_id }}"></div>
 <script>
@@ -23,6 +28,7 @@ Acciones soportadas en la última celda de cada fila (objeto JSON):
     const container = document.getElementById('{{ container_id }}');
     const headers = {{ headers_json|safe }};
     const rawData = {{ data_json|safe }};
+    const sortValues = {% if sort_values_json %}{{ sort_values_json|safe }}{% else %}[]{% endif %};
     const showActions = {% if no_actions %}false{% else %}true{% endif %};
     const emptyMessage = '{{ empty_message|default:"No hay registros."|escapejs }}';
 
@@ -70,91 +76,97 @@ Acciones soportadas en la última celda de cada fila (objeto JSON):
       return btn;
     }
 
-    const data = rawData.map(row => row.map((cell, idx) => {
-      if (showActions && idx === row.length - 1) {
-        let actions;
-        try { actions = typeof cell === 'string' ? JSON.parse(cell) : cell; }
-        catch (e) { actions = null; }
+    // Determina qué columnas tienen sort numérico (a partir de sortValues).
+    const numericCols = {};
+    if (Array.isArray(sortValues) && sortValues.length === rawData.length) {
+      const firstRow = sortValues[0] || [];
+      firstRow.forEach(function(v, i) {
+        if (typeof v === 'number') numericCols[i] = true;
+      });
+    }
 
-        const span = document.createElement('span');
-        span.style.display = 'inline-flex';
-        span.style.gap = '0.5rem';
-        span.style.alignItems = 'center';
+    const data = rawData.map(function(row, rowIdx) {
+      return row.map(function(cell, idx) {
+        // Última columna con acciones (si showActions)
+        if (showActions && idx === row.length - 1) {
+          let actions;
+          try { actions = typeof cell === 'string' ? JSON.parse(cell) : cell; }
+          catch (e) { actions = null; }
 
-        if (actions && actions.detail) {
-          const a = document.createElement('a');
-          a.href = actions.detail;
-          a.innerHTML = '<i class="material-icons">visibility</i>';
-          a.title = 'Ver';
-          span.appendChild(a);
+          const span = document.createElement('span');
+          span.style.display = 'inline-flex';
+          span.style.gap = '0.5rem';
+          span.style.alignItems = 'center';
+
+          if (actions && actions.detail) {
+            const a = document.createElement('a');
+            a.href = actions.detail;
+            a.innerHTML = '<i class="material-icons">visibility</i>';
+            a.title = 'Ver';
+            span.appendChild(a);
+          }
+
+          if (actions && actions.edit) {
+            const a = document.createElement('a');
+            a.href = actions.edit;
+            a.innerHTML = '<i class="material-icons">edit</i>';
+            a.title = 'Editar';
+            span.appendChild(a);
+          }
+
+          if (actions && actions.toggle) {
+            const form = makePostForm(actions.toggle, { next: actions.next || window.location.pathname });
+            form.appendChild(makeIconBtn(actions.active ? 'toggle_on' : 'toggle_off',
+                                         actions.active ? 'Desactivar' : 'Activar'));
+            span.appendChild(form);
+          }
+
+          return span;
         }
-
-        if (actions && actions.edit) {
-          const a = document.createElement('a');
-          a.href = actions.edit;
-          a.innerHTML = '<i class="material-icons">edit</i>';
-          a.title = 'Editar';
-          span.appendChild(a);
+        // Columna numérica con sort por sortValues
+        if (numericCols[idx] && cell && typeof cell === 'object' && 'display' in cell) {
+          return cell;
         }
+        return cell;
+      });
+    });
 
-        if (actions && actions.toggle) {
-          const form = makePostForm(actions.toggle, { next: actions.next || window.location.pathname });
-          form.appendChild(makeIconBtn(actions.active ? 'toggle_on' : 'toggle_off',
-                                       actions.active ? 'Desactivar' : 'Activar'));
-          span.appendChild(form);
-        }
-
-        if (actions && actions.void) {
-          const form = makePostForm(actions.void, {});
-          form.onsubmit = function(e) {
-            const reason = window.prompt('Razón de anulación (obligatoria):');
-            if (reason === null) {
-              e.preventDefault();
-              return false;
-            }
-            const trimmed = reason.trim();
-            if (!trimmed) {
-              window.alert('La razón es obligatoria.');
-              e.preventDefault();
-              return false;
-            }
-            const reasonInput = document.createElement('input');
-            reasonInput.type = 'hidden';
-            reasonInput.name = 'reason';
-            reasonInput.value = trimmed;
-            form.appendChild(reasonInput);
-            return true;
-          };
-          form.appendChild(makeIconBtn('block', 'Anular'));
-          span.appendChild(form);
-        }
-
-        if (actions && actions.reactivate) {
-          const form = makePostForm(actions.reactivate, {});
-          form.onsubmit = function(e) {
-            if (!window.confirm('¿Reactivar esta factura? Esto recreará sus líneas y reaplicará stock y costo.')) {
-              e.preventDefault();
-              return false;
-            }
-            return true;
-          };
-          form.appendChild(makeIconBtn('restore', 'Reactivar'));
-          span.appendChild(form);
-        }
-
-        return span;
-      }
-      return cell;
-    }));
-
-    const columns = headers.map((header, index) => {
+    const columns = headers.map(function(header, index) {
       if (showActions && index === headers.length - 1) {
-        return { name: header, sort: false, formatter: (cell) => cell };
+        return { name: header, sort: false, formatter: function(cell) { return cell; } };
+      }
+      const isNumeric = !!numericCols[index];
+      if (isNumeric) {
+        return {
+          name: header,
+          sort: {
+            compare: function(a, b) {
+              const av = (a && typeof a === 'object' && 'sort' in a) ? Number(a.sort) : Number(a);
+              const bv = (b && typeof b === 'object' && 'sort' in b) ? Number(b.sort) : Number(b);
+              if (isNaN(av) && isNaN(bv)) return 0;
+              if (isNaN(av)) return 1;
+              if (isNaN(bv)) return -1;
+              return av - bv;
+            },
+            icon: function(order) {
+              const icon = document.createElement('i');
+              icon.className = 'material-icons gridjs-sort-icon';
+              icon.textContent = order === 'asc' ? 'arrow_upward'
+                               : order === 'desc' ? 'arrow_downward'
+                               : 'unfold_more';
+              return icon;
+            }
+          },
+          formatter: function(cell) {
+            if (cell && typeof cell === 'object' && 'display' in cell) return cell.display;
+            return cell;
+          }
+        };
       }
       return {
         name: header,
         sort: {
-          icon: (order) => {
+          icon: function(order) {
             const icon = document.createElement('i');
             icon.className = 'material-icons gridjs-sort-icon';
             icon.textContent = order === 'asc' ? 'arrow_upward'
@@ -178,11 +190,11 @@ Acciones soportadas en la última celda de cada fila (objeto JSON):
           previous: 'Anterior',
           next: 'Siguiente',
           showing: 'Mostrando',
-          results: () => 'registros'
+          results: function() { return 'registros'; }
         }
       }
     }).render(container);
 
-    document.querySelectorAll('.gridjs-pages').forEach(el => el.setAttribute('role', 'group'));
+    document.querySelectorAll('.gridjs-pages').forEach(function(el) { el.setAttribute('role', 'group'); });
   });
 </script>

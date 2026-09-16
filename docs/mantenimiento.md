@@ -39,6 +39,11 @@ agentes automáticamente.
      serialización de la vista `<m>_list_view` correspondiente.
    - [`docs/frontend.md`](frontend.md) — mencionar si cambia el
      comportamiento de Grid.js.
+   - **Si el campo es numérico** y se quiere ordenar correctamente,
+     envolverlo con `_sortable_cell(value)` en la fila y añadir el
+     `float(value)` correspondiente a `sort_values`. Ver la sección
+     "Celdas ordenables" de
+     [`docs/frontend.md`](frontend.md#celdas-ordenables-columnas-numéricas).
 4. Si el campo aparece en una factura:
    - [`docs/formularios.md`](formularios.md) — `Meta.fields` del form.
    - [`docs/frontend.md`](frontend.md) — columnas de

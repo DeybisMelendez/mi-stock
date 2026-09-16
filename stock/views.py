@@ -34,6 +34,18 @@ from django.core import serializers
 # ===== Listas dedicadas (vistas y templates propios) =====
 
 
+def _sortable_cell(value):
+    """Celda que Grid.js muestra como string pero ordena como número.
+
+    Devuelve un dict con `display` (lo que ve el usuario) y `sort` (el
+    valor numérico para el comparador). Si el valor es None, devuelve
+    un string vacío para que la fila siga apareciendo.
+    """
+    if value is None:
+        return ""
+    return {"display": str(value), "sort": float(value)}
+
+
 @login_required
 def product_list_view(request):
     """Lista de productos con tabs activos/inactivos y filtro por etiqueta."""
@@ -53,14 +65,15 @@ def product_list_view(request):
 
     def _serialize(qs):
         rows = []
+        sort_values = []
         for p in qs:
             rows.append([
                 p.name,
                 p.category.name if p.category else "",
                 ", ".join(t.name for t in p.tags.all()),
-                str(p.stock),
-                str(p.price),
-                str(p.average_cost),
+                _sortable_cell(p.stock),
+                _sortable_cell(p.price),
+                _sortable_cell(p.average_cost),
                 {
                     "detail": reverse("product_detail", args=[p.id]),
                     "edit": reverse("product_edit", args=[p.id]),
@@ -69,7 +82,19 @@ def product_list_view(request):
                     "next": request.get_full_path(),
                 },
             ])
-        return rows
+            sort_values.append([
+                "",
+                "",
+                "",
+                float(p.stock),
+                float(p.price),
+                float(p.average_cost),
+                "",
+            ])
+        return rows, sort_values
+
+    active_rows, active_sort = _serialize(active_qs)
+    inactive_rows, inactive_sort = _serialize(inactive_qs)
 
     context = {
         "title": "Productos",
@@ -80,8 +105,10 @@ def product_list_view(request):
         ),
         "active_count": active_qs.count(),
         "inactive_count": inactive_qs.count(),
-        "active_data_json": json.dumps(_serialize(active_qs)),
-        "inactive_data_json": json.dumps(_serialize(inactive_qs)),
+        "active_data_json": json.dumps(active_rows),
+        "active_sort_values_json": json.dumps(active_sort),
+        "inactive_data_json": json.dumps(inactive_rows),
+        "inactive_sort_values_json": json.dumps(inactive_sort),
         "available_tags": list(Tag.objects.all().values("id", "name")),
         "selected_tag": selected_tag,
         "clear_url": request.path + "?tab=" + tab,
@@ -101,21 +128,27 @@ def purchase_list_view(request):
         invoices = invoices.filter(items__product__tags=selected_tag).distinct()
 
     rows = []
+    sort_values = []
     for inv in invoices:
         actions = {
             "detail": reverse("purchase_invoice_detail", args=[inv.id]),
         }
-        if inv.voided:
-            actions["reactivate"] = reverse("reactivate_purchase_invoice", args=[inv.id])
-        else:
-            actions["void"] = reverse("void_purchase_invoice", args=[inv.id])
+        total = inv.get_total()
         rows.append([
             inv.date.strftime("%d/%m/%Y"),
             inv.supplier,
             ", ".join(f"{i.quantity} × {i.product.name}" for i in inv.items.all()),
-            str(inv.get_total()),
+            _sortable_cell(total),
             "Anulada" if inv.voided else "Activa",
             actions,
+        ])
+        sort_values.append([
+            "",
+            "",
+            "",
+            float(total),
+            "",
+            "",
         ])
 
     context = {
@@ -124,6 +157,7 @@ def purchase_list_view(request):
             ["Fecha", "Proveedor", "Productos", "Total", "Estado", "Acciones"]
         ),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps(sort_values),
         "available_tags": list(Tag.objects.all().values("id", "name")),
         "selected_tag": selected_tag,
         "clear_url": request.path,
@@ -143,21 +177,27 @@ def sale_list_view(request):
         invoices = invoices.filter(items__product__tags=selected_tag).distinct()
 
     rows = []
+    sort_values = []
     for inv in invoices:
         actions = {
             "detail": reverse("sale_invoice_detail", args=[inv.id]),
         }
-        if inv.voided:
-            actions["reactivate"] = reverse("reactivate_sale_invoice", args=[inv.id])
-        else:
-            actions["void"] = reverse("void_sale_invoice", args=[inv.id])
+        total = inv.get_total()
         rows.append([
             inv.date.strftime("%d/%m/%Y"),
             inv.customer_obj.name,
             ", ".join(f"{i.quantity} × {i.product.name}" for i in inv.items.all()),
-            str(inv.get_total()),
+            _sortable_cell(total),
             "Anulada" if inv.voided else "Activa",
             actions,
+        ])
+        sort_values.append([
+            "",
+            "",
+            "",
+            float(total),
+            "",
+            "",
         ])
 
     context = {
@@ -166,6 +206,7 @@ def sale_list_view(request):
             ["Fecha", "Cliente", "Productos", "Total", "Estado", "Acciones"]
         ),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps(sort_values),
         "available_tags": list(Tag.objects.all().values("id", "name")),
         "selected_tag": selected_tag,
         "clear_url": request.path,
@@ -188,6 +229,7 @@ def category_list_view(request):
         "title": "Categorías",
         "headers_json": json.dumps(["Nombre", "Acciones"]),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps([]),
     }
     return render(request, "category_list.html", context)
 
@@ -219,6 +261,7 @@ def tag_list_view(request):
         "title": "Etiquetas",
         "headers_json": json.dumps(["Nombre", "Acciones"]),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps([]),
     }
     return render(request, "tag_list.html", context)
 
@@ -250,6 +293,7 @@ def expensecategory_list_view(request):
         "title": "Categorías de Gastos",
         "headers_json": json.dumps(["Nombre", "Acciones"]),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps([]),
     }
     return render(request, "expensecategory_list.html", context)
 
@@ -281,6 +325,7 @@ def otherincomecategory_list_view(request):
         "title": "Categorías de Otros Ingresos",
         "headers_json": json.dumps(["Nombre", "Acciones"]),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps([]),
     }
     return render(request, "otherincomecategory_list.html", context)
 
@@ -319,6 +364,7 @@ def customer_list_view(request):
             ["Nombre", "WhatsApp", "Departamento", "Activo", "Acciones"]
         ),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps([]),
     }
     return render(request, "customer_list.html", context)
 
@@ -343,20 +389,23 @@ def customer_form_view(request, pk=None):
 @login_required
 def expense_list_view(request):
     rows = []
+    sort_values = []
     for e in Expense.objects.select_related("category"):
         rows.append([
             e.date.strftime("%d/%m/%Y"),
             e.category.name if e.category else "",
             e.description or "",
-            str(e.amount),
+            _sortable_cell(e.amount),
             {"edit": reverse("expense_edit", args=[e.id])},
         ])
+        sort_values.append(["", "", "", float(e.amount), ""])
     context = {
         "title": "Gastos",
         "headers_json": json.dumps(
             ["Fecha", "Categoría", "Descripción", "Monto", "Acciones"]
         ),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps(sort_values),
     }
     return render(request, "expense_list.html", context)
 
@@ -381,20 +430,23 @@ def expense_form_view(request, pk=None):
 @login_required
 def otherincome_list_view(request):
     rows = []
+    sort_values = []
     for oi in OtherIncome.objects.select_related("category"):
         rows.append([
             oi.date.strftime("%d/%m/%Y"),
             oi.category.name if oi.category else "",
             oi.description or "",
-            str(oi.amount),
+            _sortable_cell(oi.amount),
             {"edit": reverse("otherincome_edit", args=[oi.id])},
         ])
+        sort_values.append(["", "", "", float(oi.amount), ""])
     context = {
         "title": "Otros Ingresos",
         "headers_json": json.dumps(
             ["Fecha", "Categoría", "Descripción", "Monto", "Acciones"]
         ),
         "data_json": json.dumps(rows),
+        "sort_values_json": json.dumps(sort_values),
     }
     return render(request, "otherincome_list.html", context)
 
@@ -1129,16 +1181,25 @@ def top_products_view(request, period='mes'):
     total_revenue_all = sum(r["total_revenue"] or 0 for r in top_products)
 
     rows = []
+    sort_values = []
     for item in top_products:
         revenue = item['total_revenue'] or 0
         percentage = (revenue / total_revenue_all * 100
                       if total_revenue_all > 0 else 0)
+        total_sold = item['total_sold'] or 0
         rows.append([
             item['product__name'],
             item['product__category__name'] or "Sin categoría",
-            str(item['total_sold']),
-            str(revenue),
+            _sortable_cell(total_sold),
+            _sortable_cell(revenue),
             f"{percentage:.2f}%",
+        ])
+        sort_values.append([
+            "",
+            "",
+            float(total_sold),
+            float(revenue),
+            "",
         ])
 
     context = {
@@ -1148,6 +1209,7 @@ def top_products_view(request, period='mes'):
              "Ingresos Totales", "% por Ingresos"]
         ),
         'data_json': json.dumps(rows),
+        'sort_values_json': json.dumps(sort_values),
         'period': period,
         'periods': REPORT_PERIODS,
     }
@@ -1194,17 +1256,25 @@ def sales_by_department(request, period='mes'):
     total_revenue_all = sum(r["total_revenue"] or 0 for r in rows)
 
     items = []
+    sort_values = []
     for item in rows:
         total_revenue = item["total_revenue"] or 0
+        total_sold = item["total_sold"] or 0
         percentage = (
             (total_revenue / total_revenue_all * 100)
             if total_revenue_all else 0
         )
         items.append([
             item["invoice__customer_obj__department__name"] or "Sin departamento",
-            str(item["total_sold"]),
-            str(total_revenue),
+            _sortable_cell(total_sold),
+            _sortable_cell(total_revenue),
             f"{percentage:.2f}%",
+        ])
+        sort_values.append([
+            "",
+            float(total_sold),
+            float(total_revenue),
+            "",
         ])
 
     return render(request, "sales_by_department.html", {
@@ -1214,6 +1284,7 @@ def sales_by_department(request, period='mes'):
              "% por Ingresos"]
         ),
         "data_json": json.dumps(items),
+        "sort_values_json": json.dumps(sort_values),
         "period": period,
         "periods": REPORT_PERIODS,
     })
@@ -1257,17 +1328,25 @@ def sales_by_tag(request, period='mes'):
     total_revenue_all = sum(r["total_revenue"] or 0 for r in rows)
 
     items = []
+    sort_values = []
     for item in rows:
         total_revenue = item["total_revenue"] or 0
+        total_sold = item["total_sold"] or 0
         percentage = (
             (total_revenue / total_revenue_all * 100)
             if total_revenue_all else 0
         )
         items.append([
             item["product__tags__name"] or "Sin etiqueta",
-            str(item["total_sold"]),
-            str(total_revenue),
+            _sortable_cell(total_sold),
+            _sortable_cell(total_revenue),
             f"{percentage:.2f}%",
+        ])
+        sort_values.append([
+            "",
+            float(total_sold),
+            float(total_revenue),
+            "",
         ])
 
     return render(request, "sales_by_tag.html", {
@@ -1277,6 +1356,7 @@ def sales_by_tag(request, period='mes'):
              "% por Ingresos"]
         ),
         "data_json": json.dumps(items),
+        "sort_values_json": json.dumps(sort_values),
         "period": period,
         "periods": REPORT_PERIODS,
     })

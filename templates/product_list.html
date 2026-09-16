@@ -8,8 +8,6 @@
 
   <hr>
 
-  <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
-
   <nav class="tabs-bar tabs-bar--buttons" role="tablist">
     <button type="button" role="tab"
             :class="{ 'tab-active': tab === 'active' }"
@@ -26,11 +24,11 @@
   </nav>
 
   <div x-show="tab === 'active'" x-cloak>
-    {% include "includes/grid_table.html" with container_id="gridjs-active" headers_json=headers_json data_json=active_data_json empty_message="No hay productos activos." only %}
+    {% include "includes/grid_table.html" with container_id="gridjs-active" headers_json=headers_json data_json=active_data_json sort_values_json=active_sort_values_json empty_message="No hay productos activos." only %}
   </div>
 
   <div x-show="tab === 'inactive'" x-cloak>
-    {% include "includes/grid_table.html" with container_id="gridjs-inactive" headers_json=headers_json data_json=inactive_data_json empty_message="No hay productos inactivos." only %}
+    {% include "includes/grid_table.html" with container_id="gridjs-inactive" headers_json=headers_json data_json=inactive_data_json sort_values_json=inactive_sort_values_json empty_message="No hay productos inactivos." only %}
   </div>
 
   <script>
