@@ -24,6 +24,7 @@ gestiona Django.
 | 0013 | `0013_remove_saleinvoice_customer.py` | Reshape: crea `Cliente Genérico`, asigna `customer_obj` a todas las facturas (incluidas las que eran "Generic"), hace la FK obligatoria y elimina el campo de texto `customer` |
 | 0014 | `0014_tag_product_tags.py` | Crea el modelo `Tag` y añade el M2M `Product.tags`. No toca datos existentes (los productos quedan sin etiquetas por defecto) |
 | 0015 | `0015_remove_product_brand.py` | Elimina el campo `brand` de `Product`. Datos existentes (texto plano) se pierden; la clasificación transversal queda cubierta por las etiquetas (migración `0014`). |
+| 0016 | `0016_purchaseinvoice_void_reason_purchaseinvoice_voided_and_more.py` | Añade campos `voided`, `voided_at`, `voided_by`, `void_reason` a `PurchaseInvoice` y `SaleInvoice`; crea el modelo `VoidedInvoiceLine` (snapshot de líneas al anular una factura). No destructiva: los nuevos campos tienen defaults. |
 
 ## ⚠️ Bloque 0004–0006: NO son reversibles sobre datos reales
 

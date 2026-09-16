@@ -113,7 +113,7 @@ class SaleInvoiceForm(forms.ModelForm):
 class SaleItemForm(forms.ModelForm):
     class Meta:
         model = Sale
-        fields = ["product", "quantity"]
+        fields = ["product", "quantity", "price"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

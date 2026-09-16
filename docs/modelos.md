@@ -88,7 +88,7 @@ los mantienen `Purchase` y `Sale`.
 | `stock` | `IntegerField(default=0)` | **Mantenido por `Purchase`/`Sale`** |
 | `price` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | Precio de venta |
 | `average_cost` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | **Mantenido por `Purchase`** (costo promedio ponderado) |
-| `active` | `BooleanField(default=True)` | Soft-delete. Productos inactivos no aparecen en facturas nuevas. Ver migración `0010_product_active`. |
+| `active` | `BooleanField(default=True)` | Soft-delete. Productos inactivos no aparecen en facturas nuevas, no aportan al valor de inventario, no generan alertas de stock y sus ventas pasadas no cuentan en estadísticas ni reportes. Ver migración `0010_product_active` y [`docs/logica-stock-costo.md`](logica-stock-costo.md#soft-delete-productactive). |
 | `tags` | `ManyToManyField(Tag, blank=True, related_name="products")` | Etiquetas libres. Un producto puede tener varias (o ninguna). Ver migración `0014`. |
 
 ### Métodos
@@ -129,11 +129,23 @@ proveedor.
 | `created_at` | `DateTimeField(auto_now_add=True)` | |
 | `date` | `DateField(default=timezone.now)` | Fecha del documento |
 | `supplier` | `CharField(max_length=200, default="Aliexpress")` | Proveedor |
+| `voided` | `BooleanField(default=False)` | True si la factura fue anulada |
+| `voided_at` | `DateTimeField(null=True, blank=True)` | Fecha/hora de la anulación |
+| `voided_by` | `ForeignKey(User, on_delete=SET_NULL, null=True, blank=True, related_name="+")` | Usuario que anuló |
+| `void_reason` | `TextField(blank=True)` | Razón obligatoria de la anulación |
 
 ### Métodos
 
 - `get_total()` → suma `item.get_total()` de todas sus líneas
   (`self.items.all()`).
+- `void(user, reason)` → anula la factura. Crea un snapshot de cada
+  línea en `VoidedInvoiceLine` y luego borra las líneas (cuyo
+  `delete()` revierte stock y costo). Marca la factura como anulada
+  con fecha, usuario y razón. Ver
+  [`logica-stock-costo.md`](logica-stock-costo.md#anulación-y-reactivación-de-facturas).
+- `reactivate()` → revierte la anulación. Lee el snapshot de
+  `VoidedInvoiceLine` y recrea las líneas (vía `Purchase.save()` que
+  reaplica stock y costo). Limpia los campos de anulación.
 - `__str__` → `"Purchase Invoice #{id} - {supplier}"`
 - `Meta.ordering = ['-date']`
 
@@ -168,10 +180,22 @@ cliente.
 | `created_at` | `DateTimeField(auto_now_add=True)` | |
 | `date` | `DateField(default=timezone.now)` | Fecha del documento |
 | `customer_obj` | `ForeignKey(Customer, on_delete=PROTECT, related_name="invoices")` | Cliente (obligatorio). Borrar un cliente con facturas asociadas lanza `ProtectedError` |
+| `voided` | `BooleanField(default=False)` | True si la factura fue anulada |
+| `voided_at` | `DateTimeField(null=True, blank=True)` | Fecha/hora de la anulación |
+| `voided_by` | `ForeignKey(User, on_delete=SET_NULL, null=True, blank=True, related_name="+")` | Usuario que anuló |
+| `void_reason` | `TextField(blank=True)` | Razón obligatoria de la anulación |
 
 ### Métodos
 
 - `get_total()` → suma `item.get_total()` de sus líneas
+- `void(user, reason)` → anula la factura. Crea un snapshot de cada
+  línea en `VoidedInvoiceLine` y luego borra las líneas (cuyo
+  `delete()` devuelve stock al producto). Marca la factura como
+  anulada con fecha, usuario y razón. Ver
+  [`logica-stock-costo.md`](logica-stock-costo.md#anulación-y-reactivación-de-facturas).
+- `reactivate()` → revierte la anulación. Lee el snapshot de
+  `VoidedInvoiceLine` y recrea las líneas (vía `Sale.save()` que
+  descuenta stock). Limpia los campos de anulación.
 - `__str__` → `"Sale Invoice #{id} - {customer}"`
 - `Meta.ordering = ['-date']`
 
@@ -186,7 +210,7 @@ Línea de factura de venta. **Sobrescribe `save()` y `delete()`** — ver
 | `invoice` | `ForeignKey(SaleInvoice, on_delete=CASCADE, related_name="items")` | Obligatorio tras migración `0006` |
 | `product` | `ForeignKey(Product, on_delete=CASCADE)` | |
 | `quantity` | `PositiveIntegerField()` | |
-| `price` | `DecimalField(max_digits=10, decimal_places=2)` | Precio unitario al que se vendió |
+| `price` | `DecimalField(max_digits=10, decimal_places=2)` | Precio unitario al que se vendió. **Editable por línea** (override del precio de catálogo). `Sale.save()` respeta el valor que llega del form; no se sobreescribe con `Product.price`. Esto permite descuentos, negociaciones o precios especiales sin tocar el catálogo. |
 | `cost` | `DecimalField(max_digits=10, decimal_places=2)` | Costo unitario **al momento de la venta** (copia de `Product.average_cost`) |
 
 > `Sale.cost` se congela al crear/editar la línea. Sirve para que
@@ -306,3 +330,25 @@ factura de venta mediante `SaleInvoice.customer_obj`.
 > una factura es seguro**: el stock se ajusta correctamente. Lo que sí
 > hay que evitar es borrar productos directamente sin querer, porque
 > arrastra todas sus compras y ventas.
+
+## VoidedInvoiceLine
+
+Snapshot de las líneas de una factura al momento de su anulación.
+Permite reactivar la factura restaurando sus líneas y reaplicando
+stock/costo. Ver
+[`logica-stock-costo.md`](logica-stock-costo.md#anulación-y-reactivación-de-facturas)
+para el flujo completo.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `invoice_kind` | `CharField(choices=[("purchase", "Compra"), ("sale", "Venta")])` | Tipo de factura de la que proviene |
+| `invoice_id` | `PositiveIntegerField()` | ID de la factura original (no FK; se conserva aunque la factura cambie de PK) |
+| `product` | `ForeignKey(Product, on_delete=CASCADE)` | Producto de la línea |
+| `quantity` | `PositiveIntegerField()` | Cantidad |
+| `unit_price` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | Precio unitario (solo ventas) |
+| `unit_cost` | `DecimalField(max_digits=10, decimal_places=2, default=0)` | Costo unitario (solo compras) |
+| `voided_at` | `DateTimeField(auto_now_add=True)` | Cuándo se creó el snapshot |
+
+- `Meta.ordering = ['-voided_at']`
+- `Meta.indexes = [Index(fields=["invoice_kind", "invoice_id"])]`
+- `__str__` → `"{kind} #{id} - {qty} x {product}"`

@@ -100,13 +100,18 @@ class PurchaseItemForm(forms.ModelForm):
 
 ### `SaleItemForm`
 
-Igual idea, pero sin campo `cost` (lo llena `Sale.save()`):
+Igual idea, pero sin campo `cost` (lo llena `Sale.save()`). Incluye
+`price` como **editable por línea**: el usuario puede sobrescribir el
+precio del catálogo sin tocar `Product.price`. Si el input está vacío
+o en 0, AlpineJS sugiere el `Product.price` al seleccionar producto
+(`invoice_form.html`, `autofillPrice()`). `Sale.save()` respeta el
+valor del form.
 
 ```python
 class SaleItemForm(forms.ModelForm):
     class Meta:
         model = Sale
-        fields = ["product", "quantity"]
+        fields = ["product", "quantity", "price"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

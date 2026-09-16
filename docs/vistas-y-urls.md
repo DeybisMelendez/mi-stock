@@ -87,12 +87,16 @@ parcial `includes/grid_table.html`, que monta Grid.js. Ver
 | `/product/<pk>/` | `product_detail` | `product_detail_view` | Detalle de producto |
 | `/product/<pk>/edit/` | `product_edit` | `product_form_view` | Editar producto con fotos |
 | `/product/<pk>/toggle-active/` | `product_toggle_active` | `product_toggle_active` | Activar/desactivar producto desde la lista (POST) |
-| `/compras/new/` | `purchase_invoice_new` | `purchase_invoice_form_view` | Crear factura de compra |
-| `/compras/<pk>/edit/` | `purchase_invoice_edit` | `purchase_invoice_form_view` | Editar factura de compra |
-| `/compras/<pk>/` | `purchase_invoice_detail` | `purchase_invoice_detail_view` | Ver factura de compra |
-| `/ventas/new/` | `sale_invoice_new` | `sale_invoice_form_view` | Crear factura de venta |
-| `/ventas/<pk>/edit/` | `sale_invoice_edit` | `sale_invoice_form_view` | Editar factura de venta |
-| `/ventas/<pk>/` | `sale_invoice_detail` | `sale_invoice_detail_view` | Ver factura de venta |
+| `/compras/new/` | `purchase_invoice_new` | `purchase_invoice_new_view` | Crear factura de compra |
+| `/compras/<pk>/edit/` | `purchase_invoice_edit` | `purchase_invoice_form_view` | **Devuelve 404**: edición deshabilitada |
+| `/compras/<pk>/` | `purchase_invoice_detail` | `purchase_invoice_detail_view` | Ver factura de compra (con acciones Anular/Reactivar) |
+| `/compras/<pk>/anular/` | `void_purchase_invoice` | `void_purchase_invoice` | Anular factura de compra (POST, requiere razón) |
+| `/compras/<pk>/reactivar/` | `reactivate_purchase_invoice` | `reactivate_purchase_invoice` | Reactivar factura de compra (POST) |
+| `/ventas/new/` | `sale_invoice_new` | `sale_invoice_new_view` | Crear factura de venta |
+| `/ventas/<pk>/edit/` | `sale_invoice_edit` | `sale_invoice_form_view` | **Devuelve 404**: edición deshabilitada |
+| `/ventas/<pk>/` | `sale_invoice_detail` | `sale_invoice_detail_view` | Ver factura de venta (con acciones Anular/Reactivar) |
+| `/ventas/<pk>/anular/` | `void_sale_invoice` | `void_sale_invoice` | Anular factura de venta (POST, requiere razón) |
+| `/ventas/<pk>/reactivar/` | `reactivate_sale_invoice` | `reactivate_sale_invoice` | Reactivar factura de venta (POST) |
 | `/resultados/<offset>/` | `month_result` | `month_result` | Estado de resultados del mes (0 = actual) |
 | `/resultados/` | `month_result` | `month_result` | Estado de resultados del mes actual |
 | `/reportes/ventas-por-departamento/` | `sales_by_department` | `sales_by_department` | Ventas agrupadas por departamento del cliente (mes actual) |
@@ -168,13 +172,23 @@ Calcula y devuelve al template `home.html`:
   `created_at` en el mes en curso, más el crecimiento vs mes anterior).
 - **Ganancia bruta** = ingresos − costos.
 - **Ganancia neta** = ingresos + otros ingresos − costos − gastos.
-- **Valor de inventario** = suma de `stock * average_cost` sobre todos
-  los productos.
-- **Alertas**: productos con `stock=0` y con `0 < stock < 2`.
+- **Valor de inventario** = suma de `stock * average_cost` solo sobre
+  productos **activos**. Los inactivos (`active=False`) no se
+  contabilizan: ya no forman parte del catálogo disponible.
+- **Alertas**: productos activos con `stock=0` y con `0 < stock < 2`.
+  Los inactivos no se listan.
 - **Top productos** (mes, semestre, año) — usa helper `_top_products`.
 - **Top categorías** (últimos 30 días).
 - **Tendencia mensual** (12 meses hacia atrás): ingresos por mes con
   `TruncMonth`.
+
+> **Productos inactivos excluidos**: todas las queries sobre `Sale`
+> (ingresos, costos, top productos, top categorías, tendencia mensual)
+> añaden `product__active=True`. Las queries sobre `Product` (valor de
+> inventario, alertas) añaden `active=True`. Esto es coherente con el
+> comportamiento de los formularios de facturas y la API pública, que
+> también filtran por `active=True`. Si luego reactivas un producto,
+> sus ventas pasadas vuelven a contar en los reportes históricos.
 
 ### `product_list_view(request)`
 
@@ -238,8 +252,18 @@ El botón en la lista es un mini-form POST con icono `toggle_on` /
 
 ### `purchase_invoice_form_view` / `sale_invoice_form_view`
 
-Vistas dedicadas para facturas. Combinan `*InvoiceForm` con el formset
-inline correspondiente:
+**Stubs que devuelven `Http404`**. Las facturas ya no se editan en
+la UI: para corregir una hay que anularla y crear una nueva. Las
+funciones se conservan (y los nombres de URL también) para que
+cualquier `reverse("purchase_invoice_edit", ...)` que quede en
+código no rompa, pero `/compras/<pk>/edit/` y `/ventas/<pk>/edit/`
+responden 404. La creación de facturas se hace vía
+`purchase_invoice_new_view` / `sale_invoice_new_view`.
+
+### `purchase_invoice_new_view` / `sale_invoice_new_view`
+
+Vistas dedicadas para **crear** facturas. Combinan `*InvoiceForm`
+con el formset inline correspondiente:
 
 ```python
 PurchaseItemFormSet = inlineformset_factory(
@@ -254,22 +278,48 @@ SaleItemFormSet = inlineformset_factory(
 
 > Estos formsets están definidos en `views.py`, **no** en `forms.py`.
 
-En POST, tras validar form y formset:
-
-- Si **editaba** (`pk` presente): redirige a
-  `purchase_invoice_detail` / `sale_invoice_detail` para mostrar la
-  factura ya actualizada.
-- Si **creaba** (`pk` ausente): redirige a `purchase_invoice_new` /
-  `sale_invoice_new` (formulario vacío, igual que antes).
+En POST, tras validar form y formset, `form.save()` y luego
+`formset.instance = invoice; formset.save()`. Redirige al
+formulario vacío (`purchase_invoice_new` / `sale_invoice_new`)
+para permitir el flujo batch de "crear varios seguidos".
 
 Además, pasan al template `invoice_form.html` los JSON con precios,
 costos y stocks de productos activos, que AlpineJS usa para
 subtotales en vivo y hints.
 
+### `void_purchase_invoice` / `void_sale_invoice`
+
+Anulan una factura. Vistas con `@login_required` y `@require_POST`.
+
+- Leen `reason` de `request.POST`. Si está vacío, redirigen al
+  detalle con `messages.error`.
+- Si la factura ya estaba anulada, redirigen al detalle con
+  `messages.info`.
+- Llaman a `invoice.void(request.user, reason)`. Este método crea
+  snapshots en `VoidedInvoiceLine`, borra las líneas (cuyo
+  `delete()` revierte stock/costo) y marca la factura como
+  anulada.
+- Redirigen a la lista del modelo con `messages.success`.
+
+### `reactivate_purchase_invoice` / `reactivate_sale_invoice`
+
+Revierten la anulación. Vistas con `@login_required` y
+`@require_POST`.
+
+- Si la factura no está anulada, redirige al detalle con
+  `messages.info`.
+- Llama a `invoice.reactivate()`. Este método lee los snapshots
+  de `VoidedInvoiceLine`, recrea las líneas (vía `Purchase.save()`
+  o `Sale.save()` que re-aplican stock/costo) y limpia los campos
+  `voided*` de la factura.
+- Redirige al detalle con `messages.success`.
+
 ### `purchase_invoice_detail_view` / `sale_invoice_detail_view`
 
 Renderizan `invoice_detail.html` con cabecera (`party`, `date`,
-`total`) y tabla de líneas. Solo lectura.
+`total`) y tabla de líneas. Si la factura está anulada, muestran un
+banner con fecha, usuario y razón. Solo lectura, con botones
+"Anular" o "Reactivar" según el estado.
 
 ### `month_result(request, month_offset=0)`
 
@@ -281,6 +331,12 @@ para calcular el rango. Calcula:
 - Utilidad bruta y neta.
 - Ingresos y costos **por categoría de producto** (`income_by_category`).
 - Gastos y otros ingresos: lista detallada y agrupación por categoría.
+
+> **Productos inactivos excluidos**: las queries sobre `Sale` (ingresos,
+> costos, `income_by_category`) añaden `product__active=True`. Los
+> gastos y otros ingresos no se ven afectados (no están ligados a
+> productos). Si reactivas un producto, sus ventas vuelven a contar
+> en el mes correspondiente.
 
 El template `month_result.html` muestra navegación entre meses
 anteriores (no permite ir a futuro).
@@ -298,9 +354,10 @@ Top productos vendidos en un período. `period` puede ser:
 
 Agrupa por producto, suma cantidad e ingresos (`quantity * price`),
 calcula el porcentaje sobre el total y serializa las filas a
-`data_json`. Renderiza `top_products.html` con el parcial
-`grid_table.html` (`no_actions=True`, sin columna de acciones) y el
-parcial `period_nav.html` para saltar entre períodos.
+`data_json`. **Excluye productos inactivos** (`product__active=True`).
+Renderiza `top_products.html` con el parcial `grid_table.html`
+(`no_actions=True`, sin columna de acciones) y el parcial
+`period_nav.html` para saltar entre períodos.
 
 ### `sales_by_department(request, period='mes')`
 
@@ -313,6 +370,9 @@ geográfica de los ingresos entre los departamentos de Nicaragua.
 "Cliente Genérico"). Por tanto el reporte utiliza **todas** las
 facturas; las que tienen como cliente el "Cliente Genérico" sin
 departamento quedan agrupadas bajo "Sin departamento".
+
+**Excluye productos inactivos** (`product__active=True`): solo se
+contabilizan ventas de productos activos.
 
 Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
 `sales_by_department.html` con `grid_table.html` (`no_actions=True`,
@@ -330,6 +390,10 @@ asignada (`product__tags__isnull=False`).
 > ventas: las de productos sin etiqueta quedan fuera del agrupamiento
 > (no aparecen bajo "Sin etiqueta"). Esto es intencional: sin
 > etiqueta no hay forma útil de agruparlas.
+
+**Excluye productos inactivos** (`product__active=True`): si un
+producto está inactivo, sus ventas (con o sin etiqueta) quedan fuera
+del agrupamiento.
 
 Períodos soportados: `mes`, `semestre`, `año`, `total`. Renderiza
 `sales_by_tag.html` con `grid_table.html` (`no_actions=True`) y
@@ -383,8 +447,9 @@ modelo por modelo con `serializers.deserialize`. Ver
 
 ### `_top_products(since)`
 
-Top 10 productos por ingresos desde `since`. Devuelve lista de dicts
-con `product__name`, `product__category__name`, `total_sold`,
+Top 10 productos por ingresos desde `since`. **Excluye productos
+inactivos** (`product__active=True`). Devuelve lista de dicts con
+`product__name`, `product__category__name`, `total_sold`,
 `total_revenue` y `percentage` calculado.
 
 ### `_period_label(start, end)`

@@ -629,6 +629,34 @@
     width: 100%;
 }
 
+.voided-banner {
+    background: var(--pico-card-background-color);
+    border-left: 4px solid var(--pico-color-red-500, #dc2626);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    border-radius: var(--pico-border-radius, 4px);
+    color: var(--pico-color-red-500, #dc2626);
+}
+
+.voided-banner p {
+    margin: 0.5rem 0 0;
+    color: var(--pico-color);
+}
+
+.voided-banner p small {
+    color: var(--muted-color);
+}
+
+.estado-activa {
+    color: var(--pico-color-green-600, #16a34a);
+    font-weight: 600;
+}
+
+.estado-anulada {
+    color: var(--pico-color-red-500, #dc2626);
+    font-weight: 600;
+}
+
 /* === Adaptación móvil =========================================
  * El navbar es único para todas las pantallas: botón hamburguesa
  * a la izquierda, enlace "Home" a la derecha, panel off-canvas

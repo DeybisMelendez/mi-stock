@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 
 
 class Category(models.Model):
@@ -71,9 +72,54 @@ class PurchaseInvoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     date = models.DateField(default=timezone.now)
     supplier = models.CharField(max_length=200, default="Aliexpress")
+    voided = models.BooleanField(default=False)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="+",
+    )
+    void_reason = models.TextField(blank=True)
 
     def get_total(self):
         return sum(item.get_total() for item in self.items.all())
+
+    def void(self, user, reason):
+        if self.voided:
+            return
+        for item in self.items.all():
+            VoidedInvoiceLine.objects.create(
+                invoice_kind="purchase",
+                invoice_id=self.pk,
+                product=item.product,
+                quantity=item.quantity,
+                unit_price=0,
+                unit_cost=item.cost,
+            )
+        for item in self.items.all():
+            item.delete()
+        self.voided = True
+        self.voided_at = timezone.now()
+        self.voided_by = user
+        self.void_reason = reason
+        self.save(update_fields=["voided", "voided_at", "voided_by", "void_reason"])
+
+    def reactivate(self):
+        if not self.voided:
+            return
+        snapshots = VoidedInvoiceLine.objects.filter(
+            invoice_kind="purchase", invoice_id=self.pk
+        )
+        for snap in snapshots:
+            Purchase.objects.create(
+                invoice=self, product=snap.product,
+                quantity=snap.quantity, cost=snap.unit_cost,
+            )
+        snapshots.delete()
+        self.voided = False
+        self.voided_at = None
+        self.voided_by = None
+        self.void_reason = ""
+        self.save(update_fields=["voided", "voided_at", "voided_by", "void_reason"])
 
     def __str__(self):
         return f"Purchase Invoice #{self.id} - {self.supplier}"
@@ -160,9 +206,55 @@ class SaleInvoice(models.Model):
         "Customer", on_delete=models.PROTECT,
         related_name="invoices",
     )
+    voided = models.BooleanField(default=False)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="+",
+    )
+    void_reason = models.TextField(blank=True)
 
     def get_total(self):
         return sum(item.get_total() for item in self.items.all())
+
+    def void(self, user, reason):
+        if self.voided:
+            return
+        for item in self.items.all():
+            VoidedInvoiceLine.objects.create(
+                invoice_kind="sale",
+                invoice_id=self.pk,
+                product=item.product,
+                quantity=item.quantity,
+                unit_price=item.price,
+                unit_cost=0,
+            )
+        for item in self.items.all():
+            item.delete()
+        self.voided = True
+        self.voided_at = timezone.now()
+        self.voided_by = user
+        self.void_reason = reason
+        self.save(update_fields=["voided", "voided_at", "voided_by", "void_reason"])
+
+    def reactivate(self):
+        if not self.voided:
+            return
+        snapshots = VoidedInvoiceLine.objects.filter(
+            invoice_kind="sale", invoice_id=self.pk
+        )
+        for snap in snapshots:
+            Sale.objects.create(
+                invoice=self, product=snap.product,
+                quantity=snap.quantity, price=snap.unit_price,
+                cost=snap.product.average_cost,
+            )
+        snapshots.delete()
+        self.voided = False
+        self.voided_at = None
+        self.voided_by = None
+        self.void_reason = ""
+        self.save(update_fields=["voided", "voided_at", "voided_by", "void_reason"])
 
     def __str__(self):
         return f"Sale Invoice #{self.id} - {self.customer_obj.name}"
@@ -203,18 +295,15 @@ class Sale(models.Model):
                 new_prod = self.product
                 new_prod.stock -= self.quantity
                 new_prod.save()
-                self.price = new_prod.price
                 self.cost = new_prod.average_cost
             else:
                 # Mismo producto: aplicar delta neto sobre stock
                 old_prod.stock += old.quantity - self.quantity
                 old_prod.save()
-                self.price = old_prod.price
                 self.cost = old_prod.average_cost
                 self.product = old_prod
         else:
             self.product.stock -= self.quantity
-            self.price = self.product.price
             self.cost = self.product.average_cost
             self.product.save()
         super().save(*args, **kwargs)
@@ -310,3 +399,36 @@ class OtherIncome(models.Model):
 
     class Meta:
         ordering = ['-date', '-created_at']
+
+
+class VoidedInvoiceLine(models.Model):
+    """Snapshot de una línea borrada al anular una factura. Permite reactivar.
+
+    Al anular una factura, sus líneas (Purchase o Sale) se eliminan y
+    ejecutan su `delete()` que revierte stock y costo. Antes de borrarlas,
+    se guarda aquí una copia con los datos necesarios para, si el usuario
+    lo desea, reactivar la factura y volver a crear las líneas (reaplicando
+    stock y costo via el flujo de creación normal).
+    """
+
+    INVOICE_KIND_CHOICES = [
+        ("purchase", "Compra"),
+        ("sale", "Venta"),
+    ]
+
+    invoice_kind = models.CharField(max_length=10, choices=INVOICE_KIND_CHOICES)
+    invoice_id = models.PositiveIntegerField()
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    voided_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-voided_at']
+        indexes = [
+            models.Index(fields=["invoice_kind", "invoice_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.invoice_kind} #{self.invoice_id} - {self.quantity} x {self.product}"

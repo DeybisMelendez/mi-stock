@@ -4,7 +4,7 @@ from .models import (
     Expense, PurchaseInvoice, SaleInvoice,
     OtherIncomeCategory, OtherIncome,
     Department, Customer,
-    Tag,
+    Tag, VoidedInvoiceLine,
 )
 
 admin.site.register(Category)
@@ -53,11 +53,12 @@ class PurchaseInline(admin.TabularInline):
 
 @admin.register(PurchaseInvoice)
 class PurchaseInvoiceAdmin(admin.ModelAdmin):
-    list_display = ("date", "supplier", "created_at")
-    list_filter = ("date", "supplier")
+    list_display = ("date", "supplier", "voided", "voided_at", "created_at")
+    list_filter = ("date", "supplier", "voided")
     date_hierarchy = "date"
     ordering = ("-date",)
     inlines = [PurchaseInline]
+    readonly_fields = ("voided_at", "voided_by", "created_at")
 
 
 @admin.register(Purchase)
@@ -75,11 +76,12 @@ class SaleInline(admin.TabularInline):
 
 @admin.register(SaleInvoice)
 class SaleInvoiceAdmin(admin.ModelAdmin):
-    list_display = ("date", "customer_obj", "created_at")
-    list_filter = ("date", "customer_obj")
+    list_display = ("date", "customer_obj", "voided", "voided_at", "created_at")
+    list_filter = ("date", "customer_obj", "voided")
     date_hierarchy = "date"
     ordering = ("-date",)
     inlines = [SaleInline]
+    readonly_fields = ("voided_at", "voided_by", "created_at")
 
 
 @admin.register(Sale)
@@ -103,3 +105,13 @@ class OtherIncomeAdmin(admin.ModelAdmin):
     list_filter = ("date", "category")
     search_fields = ("description",)
     ordering = ("-date",)
+
+
+@admin.register(VoidedInvoiceLine)
+class VoidedInvoiceLineAdmin(admin.ModelAdmin):
+    list_display = ("invoice_kind", "invoice_id", "product", "quantity",
+                    "unit_price", "unit_cost", "voided_at")
+    list_filter = ("invoice_kind",)
+    search_fields = ("product__name",)
+    ordering = ("-voided_at",)
+    readonly_fields = ("voided_at",)

@@ -3,6 +3,21 @@
 <main class="container">
   <h1>{{ title }}</h1>
 
+  {% if invoice.voided %}
+    <article class="voided-banner" data-test="voided-banner">
+      <strong><i class="material-icons">block</i> Factura anulada</strong>
+      <p>
+        <small>
+          Anulada el {{ invoice.voided_at|date:"d/m/Y H:i" }}
+          {% if invoice.voided_by %}por {{ invoice.voided_by.username }}{% endif %}.
+        </small>
+      </p>
+      {% if invoice.void_reason %}
+        <p><strong>Razón:</strong> {{ invoice.void_reason }}</p>
+      {% endif %}
+    </article>
+  {% endif %}
+
   <p><strong>{{ party_label }}:</strong> {{ party }}</p>
   <p><strong>Fecha:</strong> {{ invoice.date|date:"d/m/Y" }}</p>
 
@@ -45,6 +60,49 @@
 
   <hr>
   <a href="{{ list_url }}" role="button"><i class="material-icons">arrow_back</i> Volver</a>
-  <a href="{{ edit_url }}" role="button"><i class="material-icons">edit</i> Editar</a>
+
+  {% if invoice.voided %}
+    <form method="post" action="{{ reactivate_url }}" style="display:inline"
+          onsubmit="return confirm('¿Reactivar esta factura? Esto recreará sus líneas y reaplicará stock y costo.');">
+      {% csrf_token %}
+      <button type="submit"><i class="material-icons">restore</i> Reactivar</button>
+    </form>
+  {% else %}
+    <button type="button" id="void-button"
+            data-void-url="{{ void_url }}">
+      <i class="material-icons">block</i> Anular
+    </button>
+  {% endif %}
 </main>
+
+<script>
+  (function() {
+    const btn = document.getElementById('void-button');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      const reason = window.prompt('Razón de anulación (obligatoria):');
+      if (reason === null) return;
+      const trimmed = reason.trim();
+      if (!trimmed) {
+        alert('La razón es obligatoria.');
+        return;
+      }
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = btn.dataset.voidUrl;
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden';
+      csrf.name = 'csrfmiddlewaretoken';
+      csrf.value = '{{ csrf_token }}';
+      form.appendChild(csrf);
+      const reasonInput = document.createElement('input');
+      reasonInput.type = 'hidden';
+      reasonInput.name = 'reason';
+      reasonInput.value = trimmed;
+      form.appendChild(reasonInput);
+      document.body.appendChild(form);
+      form.submit();
+    });
+  })();
+</script>
 {% endblock %}

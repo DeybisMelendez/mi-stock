@@ -102,21 +102,26 @@ def purchase_list_view(request):
 
     rows = []
     for inv in invoices:
+        actions = {
+            "detail": reverse("purchase_invoice_detail", args=[inv.id]),
+        }
+        if inv.voided:
+            actions["reactivate"] = reverse("reactivate_purchase_invoice", args=[inv.id])
+        else:
+            actions["void"] = reverse("void_purchase_invoice", args=[inv.id])
         rows.append([
             inv.date.strftime("%d/%m/%Y"),
             inv.supplier,
             ", ".join(f"{i.quantity} × {i.product.name}" for i in inv.items.all()),
             str(inv.get_total()),
-            {
-                "detail": reverse("purchase_invoice_detail", args=[inv.id]),
-                "edit": reverse("purchase_invoice_edit", args=[inv.id]),
-            },
+            "Anulada" if inv.voided else "Activa",
+            actions,
         ])
 
     context = {
         "title": "Compras",
         "headers_json": json.dumps(
-            ["Fecha", "Proveedor", "Productos", "Total", "Acciones"]
+            ["Fecha", "Proveedor", "Productos", "Total", "Estado", "Acciones"]
         ),
         "data_json": json.dumps(rows),
         "available_tags": list(Tag.objects.all().values("id", "name")),
@@ -139,21 +144,26 @@ def sale_list_view(request):
 
     rows = []
     for inv in invoices:
+        actions = {
+            "detail": reverse("sale_invoice_detail", args=[inv.id]),
+        }
+        if inv.voided:
+            actions["reactivate"] = reverse("reactivate_sale_invoice", args=[inv.id])
+        else:
+            actions["void"] = reverse("void_sale_invoice", args=[inv.id])
         rows.append([
             inv.date.strftime("%d/%m/%Y"),
             inv.customer_obj.name,
             ", ".join(f"{i.quantity} × {i.product.name}" for i in inv.items.all()),
             str(inv.get_total()),
-            {
-                "detail": reverse("sale_invoice_detail", args=[inv.id]),
-                "edit": reverse("sale_invoice_edit", args=[inv.id]),
-            },
+            "Anulada" if inv.voided else "Activa",
+            actions,
         ])
 
     context = {
         "title": "Ventas",
         "headers_json": json.dumps(
-            ["Fecha", "Cliente", "Productos", "Total", "Acciones"]
+            ["Fecha", "Cliente", "Productos", "Total", "Estado", "Acciones"]
         ),
         "data_json": json.dumps(rows),
         "available_tags": list(Tag.objects.all().values("id", "name")),
@@ -498,22 +508,39 @@ SaleItemFormSet = inlineformset_factory(
 
 @login_required
 def purchase_invoice_form_view(request, pk=None):
-    invoice = get_object_or_404(PurchaseInvoice, pk=pk) if pk else None
-    title = ("Editar " if invoice else "Agregar nueva ") + "Factura de Compra"
+    """Stub: la edición de facturas está deshabilitada. Usar Anular + Reactivar.
 
+    La URL `/compras/<pk>/edit/` se conserva (devuelve 404) para que
+    cualquier `reverse("purchase_invoice_edit", ...)` que quede en el
+    código no rompa en tiempo de import, pero la funcionalidad de
+    edición ya no existe: para corregir una factura hay que anularla y
+    crear una nueva.
+    """
+    raise Http404("La edición de facturas está deshabilitada. Use Anular + Reactivar.")
+
+
+@login_required
+def sale_invoice_form_view(request, pk=None):
+    """Stub: la edición de facturas está deshabilitada. Usar Anular + Reactivar."""
+    raise Http404("La edición de facturas está deshabilitada. Use Anular + Reactivar.")
+
+
+@login_required
+def purchase_invoice_new_view(request):
+    """Crear nueva factura de compra (la edición está deshabilitada)."""
+    title = "Agregar nueva Factura de Compra"
     if request.method == "POST":
-        form = PurchaseInvoiceForm(request.POST, instance=invoice)
-        formset = PurchaseItemFormSet(request.POST, instance=invoice)
+        form = PurchaseInvoiceForm(request.POST)
+        formset = PurchaseItemFormSet(request.POST)
         if form.is_valid() and formset.is_valid():
             invoice = form.save()
             formset.instance = invoice
             formset.save()
             messages.success(request, "Se ha guardado correctamente.")
-            return redirect("purchase_invoice_detail", pk=invoice.id) if pk else redirect("purchase_invoice_new")
+            return redirect("purchase_invoice_new")
     else:
-        form = PurchaseInvoiceForm(instance=invoice)
-        formset = PurchaseItemFormSet(instance=invoice)
-
+        form = PurchaseInvoiceForm()
+        formset = PurchaseItemFormSet()
     context = {
         "title": title,
         "form": form,
@@ -533,23 +560,21 @@ def purchase_invoice_form_view(request, pk=None):
 
 
 @login_required
-def sale_invoice_form_view(request, pk=None):
-    invoice = get_object_or_404(SaleInvoice, pk=pk) if pk else None
-    title = ("Editar " if invoice else "Agregar nueva ") + "Factura de Venta"
-
+def sale_invoice_new_view(request):
+    """Crear nueva factura de venta (la edición está deshabilitada)."""
+    title = "Agregar nueva Factura de Venta"
     if request.method == "POST":
-        form = SaleInvoiceForm(request.POST, instance=invoice)
-        formset = SaleItemFormSet(request.POST, instance=invoice)
+        form = SaleInvoiceForm(request.POST)
+        formset = SaleItemFormSet(request.POST)
         if form.is_valid() and formset.is_valid():
             invoice = form.save()
             formset.instance = invoice
             formset.save()
             messages.success(request, "Se ha guardado correctamente.")
-            return redirect("sale_invoice_detail", pk=invoice.id) if pk else redirect("sale_invoice_new")
+            return redirect("sale_invoice_new")
     else:
-        form = SaleInvoiceForm(instance=invoice)
-        formset = SaleItemFormSet(instance=invoice)
-
+        form = SaleInvoiceForm()
+        formset = SaleItemFormSet()
     context = {
         "title": title,
         "form": form,
@@ -566,6 +591,66 @@ def sale_invoice_form_view(request, pk=None):
 
 
 @login_required
+@require_POST
+def void_purchase_invoice(request, pk):
+    """Anula una factura de compra: revierte stock y costo de las líneas."""
+    invoice = get_object_or_404(PurchaseInvoice, pk=pk)
+    reason = (request.POST.get("reason") or "").strip()
+    if not reason:
+        messages.error(request, "Debe ingresar una razón para anular la factura.")
+        return redirect("purchase_invoice_detail", pk=pk)
+    if invoice.voided:
+        messages.info(request, "La factura ya estaba anulada.")
+        return redirect("purchase_invoice_detail", pk=pk)
+    invoice.void(request.user, reason)
+    messages.success(request, f"Factura de compra #{pk} anulada correctamente.")
+    return redirect("purchase_invoice_list")
+
+
+@login_required
+@require_POST
+def void_sale_invoice(request, pk):
+    """Anula una factura de venta: revierte stock de las líneas."""
+    invoice = get_object_or_404(SaleInvoice, pk=pk)
+    reason = (request.POST.get("reason") or "").strip()
+    if not reason:
+        messages.error(request, "Debe ingresar una razón para anular la factura.")
+        return redirect("sale_invoice_detail", pk=pk)
+    if invoice.voided:
+        messages.info(request, "La factura ya estaba anulada.")
+        return redirect("sale_invoice_detail", pk=pk)
+    invoice.void(request.user, reason)
+    messages.success(request, f"Factura de venta #{pk} anulada correctamente.")
+    return redirect("sale_invoice_list")
+
+
+@login_required
+@require_POST
+def reactivate_purchase_invoice(request, pk):
+    """Reactiva una factura de compra anulada: recrea las líneas y reaplica stock/costo."""
+    invoice = get_object_or_404(PurchaseInvoice, pk=pk)
+    if not invoice.voided:
+        messages.info(request, "La factura no está anulada.")
+        return redirect("purchase_invoice_detail", pk=pk)
+    invoice.reactivate()
+    messages.success(request, f"Factura de compra #{pk} reactivada correctamente.")
+    return redirect("purchase_invoice_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def reactivate_sale_invoice(request, pk):
+    """Reactiva una factura de venta anulada: recrea las líneas y reaplica stock."""
+    invoice = get_object_or_404(SaleInvoice, pk=pk)
+    if not invoice.voided:
+        messages.info(request, "La factura no está anulada.")
+        return redirect("sale_invoice_detail", pk=pk)
+    invoice.reactivate()
+    messages.success(request, f"Factura de venta #{pk} reactivada correctamente.")
+    return redirect("sale_invoice_detail", pk=pk)
+
+
+@login_required
 def purchase_invoice_detail_view(request, pk):
     """Vista de detalle de una factura de compra."""
     invoice = get_object_or_404(PurchaseInvoice, pk=pk)
@@ -575,8 +660,9 @@ def purchase_invoice_detail_view(request, pk):
         "party_label": "Proveedor",
         "party": invoice.supplier,
         "kind": "purchase",
-        "edit_url": reverse("purchase_invoice_edit", args=[invoice.id]),
         "list_url": reverse("purchase_list"),
+        "void_url": reverse("void_purchase_invoice", args=[invoice.id]),
+        "reactivate_url": reverse("reactivate_purchase_invoice", args=[invoice.id]),
     }
     return render(request, "invoice_detail.html", context)
 
@@ -591,16 +677,17 @@ def sale_invoice_detail_view(request, pk):
         "party_label": "Cliente",
         "party": invoice.customer_obj.name,
         "kind": "sale",
-        "edit_url": reverse("sale_invoice_edit", args=[invoice.id]),
         "list_url": reverse("sale_list"),
+        "void_url": reverse("void_sale_invoice", args=[invoice.id]),
+        "reactivate_url": reverse("reactivate_sale_invoice", args=[invoice.id]),
     }
     return render(request, "invoice_detail.html", context)
 
 
 def _top_products(since):
-    """Top productos por ingresos desde la fecha dada."""
+    """Top productos por ingresos desde la fecha dada. Excluye productos inactivos."""
     rows = (
-        Sale.objects.filter(invoice__date__gte=since)
+        Sale.objects.filter(invoice__date__gte=since, product__active=True)
         .values("product__name", "product__category__name")
         .annotate(
             total_sold=Sum("quantity"),
@@ -641,14 +728,14 @@ def home(request):
         return ((current - previous) / previous) * 100
 
     def sale_sum(start, end=None):
-        qs = Sale.objects.filter(invoice__date__gte=start)
+        qs = Sale.objects.filter(invoice__date__gte=start, product__active=True)
         if end:
             qs = qs.filter(invoice__date__lte=end)
         return qs.aggregate(total=Sum(F("quantity") * F("price")))["total"] or 0
 
     def cost_sum(start, end):
         return (
-            Sale.objects.filter(invoice__date__range=[start, end])
+            Sale.objects.filter(invoice__date__range=[start, end], product__active=True)
             .aggregate(total=Sum(F("quantity") * F("cost")))["total"]
             or 0
         )
@@ -692,11 +779,17 @@ def home(request):
 
     # ===== INVENTARIO =====
     inventory_value = (
-        Product.objects.annotate(value=F("stock") * F("average_cost"))
+        Product.objects.filter(active=True)
+        .annotate(value=F("stock") * F("average_cost"))
         .aggregate(total=Sum("value"))["total"] or 0
     )
-    low_stock = Product.objects.filter(stock__gt=0, stock__lt=2).order_by("stock")
-    out_of_stock = Product.objects.filter(stock=0).order_by("name")
+    low_stock = (
+        Product.objects.filter(active=True, stock__gt=0, stock__lt=2)
+        .order_by("stock")
+    )
+    out_of_stock = (
+        Product.objects.filter(active=True, stock=0).order_by("name")
+    )
 
     # ===== TOP PRODUCTOS (mes, semestre, año calendario) =====
     top_products_month = _top_products(month_start)
@@ -705,7 +798,7 @@ def home(request):
 
     # ===== TOP CATEGORÍAS (30 días) =====
     top_categories = (
-        Sale.objects.filter(invoice__date__gte=last30_date)
+        Sale.objects.filter(invoice__date__gte=last30_date, product__active=True)
         .values("product__category__name")
         .annotate(total_revenue=Sum(F("quantity") * F("price")))
         .order_by("-total_revenue")[:5]
@@ -716,7 +809,7 @@ def home(request):
     month_map = {
         m["month"]: float(m["total"])
         for m in (
-            Sale.objects.filter(invoice__date__gte=twelve_months_ago)
+            Sale.objects.filter(invoice__date__gte=twelve_months_ago, product__active=True)
             .annotate(month=TruncMonth("invoice__date"))
             .values("month")
             .annotate(total=Sum(F("quantity") * F("price")))
@@ -812,14 +905,14 @@ def month_result(request, month_offset=0):
     sale_filter = {"invoice__date__range": [start, end]}
     date_filter = {"date__range": [start, end]}
 
-    # Ingresos y costos del mes
+    # Ingresos y costos del mes (excluye productos inactivos)
     income = (
-        Sale.objects.filter(**sale_filter)
+        Sale.objects.filter(**sale_filter, product__active=True)
         .aggregate(total=Sum(F("quantity") * F("price")))
     )["total"] or 0
 
     costs = (
-        Sale.objects.filter(**sale_filter)
+        Sale.objects.filter(**sale_filter, product__active=True)
         .aggregate(total=Sum(F("quantity") * F("cost")))
     )["total"] or 0
 
@@ -836,9 +929,9 @@ def month_result(request, month_offset=0):
     gross_profit = income - costs
     net_profit = income + other_income - costs - expenses
 
-    # Desglose por categoría de producto
+    # Desglose por categoría de producto (excluye productos inactivos)
     income_by_category = list(
-        Sale.objects.filter(**sale_filter)
+        Sale.objects.filter(**sale_filter, product__active=True)
         .values("product__category__name")
         .annotate(
             income=Sum(F("quantity") * F("price")),
@@ -926,13 +1019,14 @@ def export_data(request):
     models_to_export = [
         "Category", "Tag", "ExpenseCategory", "Product", "ProductImage",
         "Department", "Customer",
-        "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
-        "OtherIncomeCategory", "OtherIncome",
+        "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale",
+        "VoidedInvoiceLine",
+        "Expense", "OtherIncomeCategory", "OtherIncome",
     ]
     data = {
         "metadata": {
             "export_date": datetime.now().isoformat(),
-            "version": "1.3",
+            "version": "1.4",
             "model_count": len(models_to_export),
         },
         "data": {}
@@ -967,8 +1061,9 @@ def import_data(request):
         models_order = [
             "Category", "Tag", "ExpenseCategory", "Product", "ProductImage",
             "Department", "Customer",
-            "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale", "Expense",
-            "OtherIncomeCategory", "OtherIncome",
+            "PurchaseInvoice", "Purchase", "SaleInvoice", "Sale",
+            "VoidedInvoiceLine",
+            "Expense", "OtherIncomeCategory", "OtherIncome",
         ]
         imported_counts = {}
 
@@ -1031,7 +1126,7 @@ def top_products_view(request, period='mes'):
         raise Http404("Período no válido")
 
     top_products = (
-        Sale.objects.filter(**date_filter)
+        Sale.objects.filter(**date_filter, product__active=True)
         .values('product__name', 'product__category__name')
         .annotate(
             total_sold=Sum('quantity'),
@@ -1092,7 +1187,11 @@ def sales_by_department(request, period='mes'):
         raise Http404("Período no válido")
 
     rows = (
-        Sale.objects.filter(**date_filter, invoice__customer_obj__isnull=False)
+        Sale.objects.filter(
+            **date_filter,
+            product__active=True,
+            invoice__customer_obj__isnull=False,
+        )
         .values("invoice__customer_obj__department__name")
         .annotate(
             total_sold=Sum("quantity"),
@@ -1153,7 +1252,9 @@ def sales_by_tag(request, period='mes'):
         raise Http404("Período no válido")
 
     rows = (
-        Sale.objects.filter(**date_filter, product__tags__isnull=False)
+        Sale.objects.filter(
+            **date_filter, product__active=True, product__tags__isnull=False
+        )
         .values("product__tags__id", "product__tags__name")
         .annotate(
             total_sold=Sum("quantity"),

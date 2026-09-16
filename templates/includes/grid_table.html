@@ -3,10 +3,19 @@ Parámetros (usar con `only`):
 - container_id: id único del div contenedor
 - headers_json: JSON array con los encabezados (la última celda puede ser "Acciones")
 - data_json: JSON array de filas (cada fila es un array de strings;
-  si hay acciones, la última celda es un objeto/JSON con detail/edit/toggle)
+  si hay acciones, la última celda es un objeto/JSON con detail/edit/toggle/void/reactivate)
 - no_actions: pasar True (o cualquier valor verdadero) para tablas
   de solo lectura, sin columna de acciones
 - empty_message: mensaje cuando no hay registros
+
+Acciones soportadas en la última celda de cada fila (objeto JSON):
+- detail: URL -> icono "visibility" (Ver)
+- edit: URL -> icono "edit" (Editar)
+- toggle: URL -> mini-form POST con icono toggle_on/off (Activar/Desactivar)
+- void: URL -> mini-form POST con icono "block" (Anular). Pide razón
+  vía window.prompt() antes de enviar.
+- reactivate: URL -> mini-form POST con icono "restore" (Reactivar).
+  Pide confirmación vía window.confirm() antes de enviar.
 {% endcomment %}
 <div id="{{ container_id }}"></div>
 <script>
@@ -22,6 +31,45 @@ Parámetros (usar con `only`):
       return;
     }
 
+    function csrfToken() {
+      const el = document.getElementById('csrf-token');
+      return el ? el.value : '';
+    }
+
+    function makePostForm(action, fields) {
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = action;
+      form.style.display = 'inline';
+      form.style.margin = '0';
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden';
+      csrf.name = 'csrfmiddlewaretoken';
+      csrf.value = csrfToken();
+      form.appendChild(csrf);
+      Object.keys(fields).forEach(function(name) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = fields[name];
+        form.appendChild(input);
+      });
+      return form;
+    }
+
+    function makeIconBtn(iconName, title) {
+      const btn = document.createElement('button');
+      btn.type = 'submit';
+      btn.className = 'icon-btn';
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+      const i = document.createElement('i');
+      i.className = 'material-icons';
+      i.textContent = iconName;
+      btn.appendChild(i);
+      return btn;
+    }
+
     const data = rawData.map(row => row.map((cell, idx) => {
       if (showActions && idx === row.length - 1) {
         let actions;
@@ -34,54 +82,64 @@ Parámetros (usar con `only`):
         span.style.alignItems = 'center';
 
         if (actions && actions.detail) {
-          const detail = document.createElement('a');
-          detail.href = actions.detail;
-          detail.innerHTML = '<i class="material-icons">visibility</i>';
-          detail.title = 'Ver';
-          span.appendChild(detail);
+          const a = document.createElement('a');
+          a.href = actions.detail;
+          a.innerHTML = '<i class="material-icons">visibility</i>';
+          a.title = 'Ver';
+          span.appendChild(a);
         }
 
         if (actions && actions.edit) {
-          const edit = document.createElement('a');
-          edit.href = actions.edit;
-          edit.innerHTML = '<i class="material-icons">edit</i>';
-          edit.title = 'Editar';
-          span.appendChild(edit);
+          const a = document.createElement('a');
+          a.href = actions.edit;
+          a.innerHTML = '<i class="material-icons">edit</i>';
+          a.title = 'Editar';
+          span.appendChild(a);
         }
 
         if (actions && actions.toggle) {
-          const toggleForm = document.createElement('form');
-          toggleForm.method = 'post';
-          toggleForm.action = actions.toggle;
-          toggleForm.style.display = 'inline';
-          toggleForm.style.margin = '0';
+          const form = makePostForm(actions.toggle, { next: actions.next || window.location.pathname });
+          form.appendChild(makeIconBtn(actions.active ? 'toggle_on' : 'toggle_off',
+                                       actions.active ? 'Desactivar' : 'Activar'));
+          span.appendChild(form);
+        }
 
-          const csrfToken = document.getElementById('csrf-token');
-          if (csrfToken) {
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = csrfToken.value;
-            toggleForm.appendChild(csrfInput);
-          }
+        if (actions && actions.void) {
+          const form = makePostForm(actions.void, {});
+          form.onsubmit = function(e) {
+            const reason = window.prompt('Razón de anulación (obligatoria):');
+            if (reason === null) {
+              e.preventDefault();
+              return false;
+            }
+            const trimmed = reason.trim();
+            if (!trimmed) {
+              window.alert('La razón es obligatoria.');
+              e.preventDefault();
+              return false;
+            }
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'reason';
+            reasonInput.value = trimmed;
+            form.appendChild(reasonInput);
+            return true;
+          };
+          form.appendChild(makeIconBtn('block', 'Anular'));
+          span.appendChild(form);
+        }
 
-          const nextInput = document.createElement('input');
-          nextInput.type = 'hidden';
-          nextInput.name = 'next';
-          nextInput.value = actions.next || window.location.pathname;
-          toggleForm.appendChild(nextInput);
-
-          const toggleBtn = document.createElement('button');
-          toggleBtn.type = 'submit';
-          toggleBtn.className = 'icon-btn';
-          toggleBtn.title = actions.active ? 'Desactivar' : 'Activar';
-          toggleBtn.setAttribute('aria-label', toggleBtn.title);
-          const icon = document.createElement('i');
-          icon.className = 'material-icons';
-          icon.textContent = actions.active ? 'toggle_on' : 'toggle_off';
-          toggleBtn.appendChild(icon);
-          toggleForm.appendChild(toggleBtn);
-          span.appendChild(toggleForm);
+        if (actions && actions.reactivate) {
+          const form = makePostForm(actions.reactivate, {});
+          form.onsubmit = function(e) {
+            if (!window.confirm('¿Reactivar esta factura? Esto recreará sus líneas y reaplicará stock y costo.')) {
+              e.preventDefault();
+              return false;
+            }
+            return true;
+          };
+          form.appendChild(makeIconBtn('restore', 'Reactivar'));
+          span.appendChild(form);
         }
 
         return span;

@@ -91,15 +91,27 @@ celda de cada fila es un objeto (o string JSON) con las URLs a
 renderizar como iconos:
 
 ```json
-{"detail": "...", "edit": "..."}
+{"detail": "...", "edit": "...", "toggle": "...", "void": "...", "reactivate": "..."}
 ```
 
-El parcial renderiza `visibility` (ver) y `edit` (editar). Si además
-hay `"toggle"` (lista de productos), renderiza un mini-form POST con
-icono `toggle_on`/`toggle_off` (activar/desactivar), leyendo el token
-CSRF de `<input id="csrf-token">` (que `product_list.html` añade) y
-preservando `next`. La vista serializa estos objetos en Python; el
-parcial solo los convierte en iconos.
+El parcial soporta los siguientes tipos de acción:
+
+- `detail` → `<a>` con icono `visibility` (Ver).
+- `edit` → `<a>` con icono `edit` (Editar).
+- `toggle` → mini-form POST con icono `toggle_on`/`toggle_off`
+  (Activar/Desactivar), leyendo el token CSRF de
+  `<input id="csrf-token">` (que `product_list.html` añade) y
+  preservando `next`.
+- `void` → mini-form POST con icono `block` (Anular). Antes de
+  enviar, abre un `window.prompt()` pidiendo la razón. Si está
+  vacía o se cancela, no se envía.
+- `reactivate` → mini-form POST con icono `restore` (Reactivar).
+  Antes de enviar, abre un `window.confirm()` pidiendo
+  confirmación. Si se cancela, no se envía.
+
+Las acciones `void` y `reactivate` se usan en las listas de
+facturas (`/compras/`, `/ventas/`). La vista serializa estos
+objetos en Python; el parcial solo los convierte en iconos + JS.
 
 ### `tag_filter.html` — Barra de filtro por etiqueta
 
@@ -219,6 +231,10 @@ Botón "Nueva" hacia `purchase_invoice_new` / `sale_invoice_new` +
 `tag_filter.html` + `grid_table.html`. Main lleva `x-data="{}"` para
 que AlpineJS procese el `@change` del filtro.
 
+La tabla incluye una columna **Estado** ("Activa" o "Anulada") y
+las acciones de la última celda son `void` o `reactivate` según
+el estado de cada factura (ver parcial `grid_table.html` arriba).
+
 ### Reportes (`top_products.html`, `sales_by_department.html`, `sales_by_tag.html`)
 
 Título + `period_nav.html` + `grid_table.html` con `no_actions=True`
@@ -279,13 +295,33 @@ La más interactiva. Renderiza:
 - Tabla de líneas con el formset inline.
 - AlpineJS calcula subtotales por línea y total general en vivo,
   leyendo:
-  - `product_prices_json` — `{product_id: price}`
+  - `product_prices_json` — `{product_id: price}` (sugerido al
+    seleccionar producto en ventas; precio en sí viene del input
+    editable por línea — ver más abajo)
   - `product_costs_json` — `{product_id: average_cost}` (solo compras)
   - `product_stocks_json` — `{product_id: stock}` (para hint en ventas)
 
+**Precio editable por línea (solo ventas)**: la columna "Precio" de
+las ventas muestra el input `{{ f.price }}` seguido de un hint
+`Sugerido: C$ X.XX (stock: N)`. AlpineJS (`autofillPrice()`) **siempre**
+sobrescribe el campo de precio con el `Product.price` del producto
+seleccionado, en estos casos:
+
+- Se carga la página (`init()`) para cada fila existente.
+- Se cambia el selector de producto (`syncRow()` disparado por
+  `change` en el `<select>`).
+- Se agrega una nueva línea (`addRow()`).
+
+El usuario puede sobrescribir el valor después (descuentos,
+negociaciones, etc.) — `Sale.save()` respeta lo que el form contenga
+(ver [`logica-stock-costo.md`](../logica-stock-costo.md)).`subtotal()`
+para ventas usa `r.unitPrice` (el del input), no
+`this.prices[productId]`.
+
 El botón "+ Agregar línea" clona una fila de `#empty-row-source`,
 reemplaza el `__FORMKEY__` por el nuevo índice y actualiza
-`TOTAL_FORMS`.
+`TOTAL_FORMS`. Para ventas, también llama a `autofillPrice()` sobre
+la fila nueva para sugerir el precio del producto recién elegido.
 
 > Si añades un campo nuevo al `Purchase`/`Sale`, **debes actualizar
 > también `invoice_form.html`** para que se muestre en la tabla.
@@ -304,8 +340,12 @@ Galería de fotos con AlpineJS (`x-data="{ active: ... }"`):
 
 ## `invoice_detail.html` — Detalle de factura
 
-Solo lectura. Cabecera (cliente/proveedor + fecha) + tabla de líneas +
-total. Botones para volver a la lista y editar.
+Cabecera (cliente/proveedor + fecha) + tabla de líneas + total.
+Botones para volver a la lista y, según el estado de la factura,
+"Editar" (deshabilitado: devuelve 404 — ver [`vistas-y-urls.md`](vistas-y-urls.md)),
+"Anular" (con `prompt()` JS pidiendo razón) o "Reactivar" (con
+`confirm()`). Si la factura está anulada, se muestra un banner rojo
+con la fecha, usuario y razón de la anulación.
 
 ## `home.html` — Dashboard
 
@@ -322,6 +362,13 @@ Carga Chart.js (solo esta página). Calcula y muestra:
 
 Las etiquetas de los gráficos se inyectan como JSON seguro
 (`{{ monthly_labels_json|safe }}`).
+
+> **Productos inactivos excluidos**: el valor de inventario y las
+> alertas de stock solo consideran productos activos. Los ingresos,
+> costos, top productos, top categorías y la tendencia mensual
+> también excluyen ventas de productos inactivos (coherente con
+> los formularios de facturas y la API pública). Ver
+> [`docs/logica-stock-costo.md`](logica-stock-costo.md#soft-delete-productactive).
 
 ## `month_result.html` — Estado de resultados mensual
 

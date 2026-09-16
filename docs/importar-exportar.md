@@ -29,6 +29,7 @@ models_to_export = [
     "Purchase",
     "SaleInvoice",
     "Sale",
+    "VoidedInvoiceLine",
     "Expense",
     "OtherIncomeCategory",
     "OtherIncome",
@@ -37,7 +38,8 @@ models_to_export = [
 
 > El orden importa para la importación: respeta las dependencias de FK.
 > Categorías antes que productos, departamentos antes que clientes,
-> facturas antes que líneas, etc.
+> facturas antes que líneas, snapshots de líneas anuladas después de
+> las facturas, etc.
 
 ### Formato del archivo
 
@@ -45,8 +47,8 @@ models_to_export = [
 {
   "metadata": {
     "export_date": "2026-08-19T15:30:00",
-    "version": "1.3",
-    "model_count": 14
+    "version": "1.4",
+    "model_count": 15
   },
   "data": {
     "Category":       [ { "model": "stock.category", "pk": 1, "fields": { ... } }, ... ],
@@ -60,6 +62,7 @@ models_to_export = [
     "Purchase":       [ ... ],
     "SaleInvoice":    [ ... ],
     "Sale":           [ ... ],
+    "VoidedInvoiceLine": [ ... ],
     "Expense":        [ ... ],
     "OtherIncomeCategory": [ ... ],
     "OtherIncome":    [ ... ]

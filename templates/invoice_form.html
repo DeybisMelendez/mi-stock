@@ -35,14 +35,16 @@
           {{ formset.management_form }}
           {% for f in formset %}
           <tr class="item-row" data-idx="{{ forloop.counter0 }}"
-              @input.debounce.50ms="syncRow($event)">
+              @input.debounce.50ms="syncRow($event)"
+              @change="syncRow($event)">
             <td data-label="Producto">{{ f.product }}</td>
             <td data-label="Cantidad">{{ f.quantity }}</td>
             {% if kind == 'purchase' %}
               <td data-label="Costo">{{ f.cost }}</td>
             {% else %}
               <td data-label="Precio">
-                <span class="muted" x-text="priceHint('items-{{ forloop.counter0 }}')"></span>
+                {{ f.price }}
+                <small class="muted" x-text="priceHint('items-{{ forloop.counter0 }}')"></small>
               </td>
             {% endif %}
             <td data-label="Subtotal">
@@ -81,7 +83,10 @@
       {% if kind == 'purchase' %}
         <td data-label="Costo">{{ formset.empty_form.cost }}</td>
       {% else %}
-        <td data-label="Precio"><span class="muted" x-text="priceHint('__FORMKEY__')"></span></td>
+        <td data-label="Precio">
+          {{ formset.empty_form.price }}
+          <small class="muted" x-text="priceHint('__FORMKEY__')"></small>
+        </td>
       {% endif %}
       <td data-label="Subtotal"><strong x-text="fmt(subtotal('__FORMKEY__'))"></strong></td>
       <td data-label="Eliminar">
@@ -104,6 +109,7 @@
         this.reindexRows();
         document.querySelectorAll('#items-body .item-row').forEach(row => {
           this.snapshotRow(row);
+          this.autofillPrice(row);
         });
       },
 
@@ -116,7 +122,7 @@
         const next = {};
         document.querySelectorAll('#items-body .item-row').forEach(row => {
           const k = this.rowKey(row);
-          if (k) next[k] = this.rows[k] || { productId: 0, quantity: 0, cost: 0 };
+          if (k) next[k] = this.rows[k] || { productId: 0, quantity: 0, unitPrice: 0, cost: 0 };
         });
         this.rows = next;
       },
@@ -126,22 +132,40 @@
         if (!k) return;
         const productSel = row.querySelector('[name$="-product"]');
         const qtyInput   = row.querySelector('[name$="-quantity"]');
+        const priceInput = row.querySelector('[name$="-price"]');
         const costInput  = row.querySelector('[name$="-cost"]');
         const productId  = productSel ? parseInt(productSel.value || '0', 10) : 0;
         const quantity   = qtyInput   ? parseFloat(qtyInput.value || '0')    : 0;
+        const unitPrice  = priceInput ? parseFloat(priceInput.value || '0')  : 0;
         const cost       = costInput  ? parseFloat(costInput.value || '0')   : 0;
-        this.rows[k] = { productId, quantity, cost };
+        this.rows[k] = { productId, quantity, unitPrice, cost };
       },
 
       syncRow(evt) {
         const row = evt.target.closest('.item-row');
-        if (row) this.snapshotRow(row);
+        if (!row) return;
+        this.snapshotRow(row);
+        if (evt.target.matches('[name$="-product"]')) {
+          this.autofillPrice(row);
+        }
+      },
+
+      autofillPrice(row) {
+        if (this.kind !== 'sale') return;
+        const priceInput = row.querySelector('[name$="-price"]');
+        if (!priceInput) return;
+        const k = this.rowKey(row);
+        const r = this.rows[k];
+        if (!r || !r.productId) return;
+        const suggested = parseFloat(this.prices[r.productId] || 0);
+        priceInput.value = suggested > 0 ? suggested.toFixed(2) : '';
+        r.unitPrice = suggested;
       },
 
       unitPrice(key) {
         const r = this.rows[key];
         if (!r || !r.productId) return 0;
-        return parseFloat(this.prices[r.productId] || 0);
+        return r.unitPrice || 0;
       },
 
       unitCost(key) {
@@ -156,14 +180,14 @@
         const p = parseFloat(this.prices[r.productId] || 0);
         const s = this.stocks[r.productId];
         const stockInfo = (s === undefined) ? '' : ` (stock: ${s})`;
-        return `Precio: C$ ${p.toFixed(2)}${stockInfo}`;
+        return `Sugerido: C$ ${p.toFixed(2)}${stockInfo}`;
       },
 
       subtotal(key) {
         const r = this.rows[key];
         if (!r) return 0;
         if (this.kind === 'purchase') return r.quantity * r.cost;
-        return r.quantity * this.unitPrice(key);
+        return r.quantity * r.unitPrice;
       },
 
       grandTotal() {
@@ -190,9 +214,11 @@
           .replace(/__FORMKEY__/g, formKey)
           .replace(/__prefix__/g, formCount);
         clone.addEventListener('input', () => this.snapshotRow(clone));
+        clone.addEventListener('change', (e) => this.syncRow(e));
         document.getElementById('items-body').appendChild(clone);
         totalForms.value = formCount + 1;
         this.snapshotRow(clone);
+        this.autofillPrice(clone);
       },
     };
   }
