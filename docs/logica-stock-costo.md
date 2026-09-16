@@ -220,7 +220,6 @@ Introducido por la migración `0010`. Los productos inactivos:
 
   - No aporta al **valor de inventario** aunque conserve stock
     físico.
-  - No genera alertas de stock bajo o agotado.
   - Sus ventas pasadas **dejan de contar** en estadísticas y
     reportes mientras esté inactivo. Si lo reactivas, vuelven a
     contar.

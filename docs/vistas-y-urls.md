@@ -175,8 +175,6 @@ Calcula y devuelve al template `home.html`:
 - **Valor de inventario** = suma de `stock * average_cost` solo sobre
   productos **activos**. Los inactivos (`active=False`) no se
   contabilizan: ya no forman parte del catálogo disponible.
-- **Alertas**: productos activos con `stock=0` y con `0 < stock < 2`.
-  Los inactivos no se listan.
 - **Top productos** (mes, semestre, año) — usa helper `_top_products`.
 - **Top categorías** (últimos 30 días).
 - **Tendencia mensual** (12 meses hacia atrás): ingresos por mes con

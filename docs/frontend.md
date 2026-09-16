@@ -358,7 +358,6 @@ Carga Chart.js (solo esta página). Calcula y muestra:
   - Gráfico de dona: ventas por categoría (30 días).
 - Productos más vendidos: tabs AlpineJS (`mes`, `semestre`, `año`)
   con tablas.
-- Alertas de inventario: agotados y bajo stock (regla: `0 < stock < 2`).
 
 Las etiquetas de los gráficos se inyectan como JSON seguro
 (`{{ monthly_labels_json|safe }}`).

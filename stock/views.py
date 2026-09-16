@@ -783,13 +783,6 @@ def home(request):
         .annotate(value=F("stock") * F("average_cost"))
         .aggregate(total=Sum("value"))["total"] or 0
     )
-    low_stock = (
-        Product.objects.filter(active=True, stock__gt=0, stock__lt=2)
-        .order_by("stock")
-    )
-    out_of_stock = (
-        Product.objects.filter(active=True, stock=0).order_by("name")
-    )
 
     # ===== TOP PRODUCTOS (mes, semestre, año calendario) =====
     top_products_month = _top_products(month_start)
@@ -856,8 +849,6 @@ def home(request):
         "new_customers_growth": growth_percentage(new_customers_this_month, new_customers_last_month),
 
         "inventory_value": inventory_value,
-        "low_stock": low_stock,
-        "out_of_stock": out_of_stock,
 
         "top_products_month": top_products_month,
         "top_products_semester": top_products_semester,

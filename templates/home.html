@@ -44,11 +44,6 @@
         <p class="kpi-card__value">
           C$ {{ inventory_value|floatformat:2 }}
         </p>
-        <footer class="kpi-card__footer">
-          <span>
-            {{ out_of_stock|length }} agotados • {{ low_stock|length }} bajo stock
-          </span>
-        </footer>
       </article>
 
       <!-- GANANCIA NETA DEL MES -->
@@ -172,49 +167,7 @@
     </article>
   </section>
 
-  <!-- ALERTAS DE INVENTARIO -->
-  <section>
-    <h2>Alertas de Inventario</h2>
-
-    <div class="grid grid--panels">
-
-      <article>
-        <header>
-          <h3>Agotados ({{ out_of_stock|length }})</h3>
-        </header>
-        {% if out_of_stock %}
-        <ul class="alert-list">
-          {% for product in out_of_stock %}
-          <li><a href="{% url 'product_detail' product.id %}">{{ product.name }}</a></li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-success">No hay productos agotados.</p>
-        {% endif %}
-      </article>
-
-      <article>
-        <header>
-          <h3>Bajo stock ({{ low_stock|length }})</h3>
-        </header>
-        {% if low_stock %}
-        <ul class="alert-list">
-          {% for product in low_stock %}
-          <li>
-            <a href="{% url 'product_detail' product.id %}">{{ product.name }}</a>
-            <small class="muted">- {{ product.stock }} u.</small>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-success">Sin productos con bajo stock.</p>
-        {% endif %}
-      </article>
-
-    </div>
-  </section>
-
-</main>
+  </main>
 
 <!-- CHART.JS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
